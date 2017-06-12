@@ -94,7 +94,7 @@ sudo apt-get install libopenscenegraph-dev python-networkx
 ```
 
 ## II. Install bulletsim
-Download code and set up the environment variables
+### 1. Download code and set up the environment variables
 ```Bash
 cd ~
 mkdir DeformableTracking && cd DeformableTracking
@@ -104,19 +104,20 @@ echo 'export BULLETSIM_SOURCE_DIR=~/DeformableTracking/bulletsim_source' >> ~/.b
 echo 'export BULLETSIM_BUILD_DIR=~/DeformableTracking/bulletsim_build' >> ~/.bashrc
 source ~/.bashrc
 ```
-Copy the "bulletsim_msgs" and "bulletsim_python" folders to Catkin workspace
+### 2. Copy the "bulletsim_msgs" and "bulletsim_python" folders to Catkin workspace
 ```Bash
 sudo cp -R $BULLETSIM_SOURCE_DIR/src/bulletsim_msgs ~/catkin_ws/src
 sudo cp -R $BULLETSIM_SOURCE_DIR/src/bulletsim_python ~/catkin_ws/src
 ```
-Catkin Make the ROS package and create a project for Eclipse
+### 3. Catkin Make the ROS package and create a project for Eclipse
 ```Bash
 cd ~/catkin_ws
 catkin_make --force-cmake -G"Eclipse CDT4 - Unix Makefiles"
 ```
-Create two Eclipse projects (Release and Debug) to folder bulletsim_build
+### 4. Create two Eclipse projects (Release and Debug) to folder bulletsim_build
 ```Bash
 cd $BULLETSIM_SOURCE_DIR
 ./make_eclipse_project.sh
 ```
-Import projects to Eclipse, then compile
+### 5. Import the Release and Debug projects to Eclipse, then compile
+reference: http://www.cnblogs.com/cv-pr/p/4871546.html
