@@ -79,7 +79,7 @@ int main(int argc, char* argv[]) {
 
 			sensor_msgs::PointCloud2ConstPtr msg_in = ros::topic::waitForMessage<sensor_msgs::PointCloud2>(LocalConfig::cameraTopics[i], nh);
 			frameName.push_back(msg_in->header.frame_id);
-			if (loadTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + msg_in->header.frame_id, transforms[i] + ".tf")) {
+			if (loadTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + msg_in->header.frame_id + ".tf", transforms[i])) {
 				ROS_INFO("Load from file calibration on camera %d succeeded.", i);
 			} else {
 				ROS_WARN("Load from file calibration on camera %d failed. Make sure the files exist.", i);
@@ -103,7 +103,7 @@ int main(int argc, char* argv[]) {
 			}
 
 			if (LocalConfig::saveTransform){
-				saveTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + msg_in->header.frame_id, transforms[i] + ".tf");
+				saveTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + msg_in->header.frame_id + ".tf", transforms[i]);
 				ROS_INFO("Calibration on camera %d is saved to file.", i);
 			}
 		}
