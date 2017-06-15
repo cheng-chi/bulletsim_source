@@ -12,6 +12,15 @@
 /////////////////////
 #include <boost/bind.hpp>
 #include "simulation/util.h"
+#include <iostream>
+#include <cpd/logging.hpp>
+#include <cpd/nonrigid.hpp>
+#include <cpd/utils.hpp>
+#include <cpd/vendor/spdlog/spdlog.h>
+#include <cpd/comparer/fgt.hpp>
+#include <cpd/rigid.hpp>
+#include <cpd/runner.hpp>
+
 
 using namespace Eigen;
 using namespace std;
@@ -86,7 +95,6 @@ void PhysicsTracker::maximizationStep(bool apply_evidence) {
 	m_stdev = calculateStdev(m_estPts, m_obsPts, m_pZgivenC, m_priorDist, TrackingConfig::pointPriorCount);
 	LOG_DEBUG("M time " << (boost::posix_time::microsec_clock::local_time() - m_time).total_milliseconds());
 
-
 #if 0
 	//boost::posix_time::ptime evidence_time = boost::posix_time::microsec_clock::local_time();
 
@@ -106,6 +114,34 @@ void PhysicsTracker::maximizationStep(bool apply_evidence) {
 	assert(isApproxEq(stdev_naive, m_stdev));
 #endif
 }
+
+
+
+void PhysicsTracker::CPDupdate() {
+
+	//m_pZgivenC = calculateResponsibilities(m_estPts, m_obsPts);
+
+	cpd::Matrix fixed = cpd::matrix_from_path("adfafd");
+	cpd::Matrix moving = cpd::matrix_from_path("adfafd");
+
+	cpd::Runner<cpd::Nonrigid, cpd::FgtComparer> runner;
+	runner.correspondence(true).outliers(0.1).normalize(true).max_iterations(150).sigma2(0.0).tolerance(1e-5);
+	cpd::Nonrigid::Result result = runner.run(fixed, moving);
+
+
+
+//    cpd::Runner<cpd::Nonrigid, cpd::FgtComparer> runner;
+//    runner.correspondence(false).outliers(0.1).normalize(true).max_iterations(150).sigma2(0.0).tolerance(1e-5);
+//
+//    Eigen::MatrixXd pointCld = m_obsPts.cast <double> ();
+//    Eigen::MatrixXd simCld = m_estPts.cast <double> ();
+//
+//    cpd::Nonrigid::Result result = runner.run(pointCld, simCld);
+
+	//m_objFeatures->m_obj->CPDapplyEvidence(toBulletVectors(result.points.cast <float> ()));
+}
+
+
 
 
 PhysicsTrackerVisualizer::PhysicsTrackerVisualizer(Scene* scene, PhysicsTracker::Ptr tracker) :

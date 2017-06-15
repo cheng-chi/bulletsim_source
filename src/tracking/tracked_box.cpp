@@ -70,3 +70,10 @@ void TrackedBox::applyEvidence(const Eigen::MatrixXf& corr, const MatrixXf& obsP
 		//getSim()->rigidBody->applyCentralImpulse(impulses[i]);
 	}
 }
+
+
+//////////////////
+void TrackedBox::CPDapplyEvidence(const vector<btVector3>& estPos_next){
+
+
+}

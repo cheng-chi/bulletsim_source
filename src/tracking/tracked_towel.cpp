@@ -156,6 +156,13 @@ void TrackedTowel::applyEvidence(const Eigen::MatrixXf& corr, const Eigen::Matri
   }
 }
 
+//////////////////
+void TrackedTowel::CPDapplyEvidence(const vector<btVector3>& estPos_next){
+
+
+}
+
+
 vector<btVector3> TrackedTowel::getPoints() {
 	vector<btVector3> out(m_nNodes);
 	btAlignedObjectArray<btSoftBody::Node>& verts = getSim()->softBody->m_nodes;

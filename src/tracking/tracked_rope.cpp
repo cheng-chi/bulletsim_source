@@ -36,6 +36,33 @@ void TrackedRope::applyEvidence(const Eigen::MatrixXf& corr, const MatrixXf& obs
   for (int i=0; i<m_nNodes; ++i) getSim()->children[i]->rigidBody->applyCentralImpulse(impulses[i]);
 }
 
+////////////////////////
+void TrackedRope::CPDapplyEvidence(const vector<btVector3>& estPos_next) {
+	vector<btVector3> estPos(m_nNodes), estVel(m_nNodes);
+	for (int i=0; i < m_nNodes; ++i)  {
+		estPos[i] = getSim()->children[i]->rigidBody->getCenterOfMassPosition();
+		estVel[i] = getSim()->children[i]->rigidBody->getLinearVelocity();
+	}
+
+	vector<float> masses = toVec(m_masses);
+	int K = estPos.size();
+	assert(estVel.size() == K);
+	assert(masses.size() == K);
+
+	vector<btVector3> impulses(K);
+
+	for (int k=0; k<K; k++) {
+		btVector3 dv = -TrackingConfig::kd_rope * estVel[k] + TrackingConfig::kp_rope * (estPos_next[k] - estPos[k]);
+		impulses[k] = masses[k]*dv;
+	}
+
+	for (int i=0; i<m_nNodes; ++i) getSim()->children[i]->rigidBody->applyCentralImpulse(impulses[i]);
+}
+
+
+
+
+
 void TrackedRope::initColors() {
 	m_colors.resize(m_nNodes, 3);
 	for (int i=0; i < m_nNodes; ++i) {

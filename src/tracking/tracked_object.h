@@ -36,6 +36,8 @@ public:
   virtual const Eigen::VectorXf getOutlierDist() { return Eigen::VectorXf::Constant(3, TrackingConfig::pointOutlierDist*METERS); }
   virtual const Eigen::VectorXf getOutlierStdev() { return Eigen::VectorXf::Constant(3, TrackingConfig::pointPriorDist*METERS); }
   virtual void applyEvidence(const Eigen::MatrixXf& corr, const Eigen::MatrixXf& obsPts) = 0;
+  ////////////////////
+  virtual void CPDapplyEvidence(const vector<btVector3>& estPos_next) = 0;
   virtual EnvironmentObject* getSim()=0;
 };
 
@@ -47,6 +49,8 @@ public:
 
   std::vector<btVector3> getPoints();
   void applyEvidence(const Eigen::MatrixXf& corr, const Eigen::MatrixXf& obsPts);
+  //////////////////
+  void CPDapplyEvidence(const vector<btVector3>& estPos_next);
   CapsuleRope* getSim() {return dynamic_cast<CapsuleRope*>(m_sim.get());}
   void initColors();
 
@@ -65,6 +69,8 @@ public:
   std::vector<btVector3> getPoints();
   std::vector<btVector3> getNormals();
   void applyEvidence(const Eigen::MatrixXf& corr, const Eigen::MatrixXf& obsPts); // add forces
+  //////////////////
+  void CPDapplyEvidence(const vector<btVector3>& estPos_next);
   BulletSoftObject* getSim() {return dynamic_cast<BulletSoftObject*>(m_sim.get());};
   void initColors();
   float m_sx, m_sy; //towel dimensions
@@ -86,6 +92,8 @@ public:
   std::vector<btVector3> getPoints();
   std::vector<btVector3> getNormals();
   void applyEvidence(const Eigen::MatrixXf& corr, const Eigen::MatrixXf& obsPts); // add forces
+  //////////////////
+  void CPDapplyEvidence(const vector<btVector3>& estPos_next);
   BulletSoftObject* getSim() {return dynamic_cast<BulletSoftObject*>(m_sim.get());};
   cv::Mat makeTexture(const vector<btVector3>& corners, cv::Mat image, CoordinateTransformer* transformer);
   cv::Point2f textureCoordinate (int node_id);
@@ -108,6 +116,8 @@ public:
 
   std::vector<btVector3> getPoints();
   void applyEvidence(const Eigen::MatrixXf& corr, const Eigen::MatrixXf& obsPts); // add forces
+  //////////////////
+  void CPDapplyEvidence(const vector<btVector3>& estPos_next);
   BulletSoftObject* getSim() {return dynamic_cast<BulletSoftObject*>(m_sim.get());};
 
 protected:
@@ -124,6 +134,8 @@ public:
   std::vector<btVector3> getPoints();
   Eigen::MatrixXf extractFeatures(ColorCloudPtr in);
   void applyEvidence(const Eigen::MatrixXf& corr, const Eigen::MatrixXf& obsPts);
+  //////////////////
+  void CPDapplyEvidence(const vector<btVector3>& estPos_next);
   BoxObject* getSim() {return dynamic_cast<BoxObject*>(m_sim.get());}
 
 protected:

@@ -7,6 +7,15 @@
 #include "simulation/simplescene.h"
 #include "feature_extractor.h"
 #include <opencv/cv.h>
+///////////////////////
+#include <iostream>
+#include <cpd/logging.hpp>
+#include <cpd/nonrigid.hpp>
+#include <cpd/utils.hpp>
+#include <cpd/vendor/spdlog/spdlog.h>
+#include <cpd/comparer/fgt.hpp>
+#include <cpd/rigid.hpp>
+#include <cpd/runner.hpp>
 
 class PhysicsTracker {
 public:
@@ -36,6 +45,7 @@ public:
 	void updateFeatures();
 	void expectationStep();
 	void maximizationStep(bool apply_evidence=true);
+	void CPDupdate();
 };
 
 

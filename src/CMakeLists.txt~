@@ -12,6 +12,8 @@ include_directories(
     ${LOG4CPLUS_INCLUDE_DIRS}
     ${ROS_ROOT_DIR}/include
     ${PHASESPACE_INCLUDE_DIR}
+
+    ${Cpd_INCLUDE_DIR}
 )
 link_directories(${BULLETSIM_BINARY_DIR}/src)
 
@@ -22,13 +24,13 @@ add_subdirectory(simulation)
 add_subdirectory(comm)
 add_subdirectory(clouds)
 
-if (BUILD_TESTS)
-  add_subdirectory(tests)
-endif (BUILD_TESTS)
-
 if (BUILD_TRACKING)
   add_subdirectory(tracking)
 endif (BUILD_TRACKING)
+
+if (BUILD_TESTS)
+  add_subdirectory(tests)
+endif (BUILD_TESTS)
 
 if (BUILD_PHASESPACE)
   add_subdirectory(phasespace)

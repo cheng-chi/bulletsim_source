@@ -84,6 +84,13 @@ void TrackedSponge::applyEvidence(const Eigen::MatrixXf& corr, const Eigen::Matr
   }
 }
 
+//////////////////
+void TrackedSponge::CPDapplyEvidence(const vector<btVector3>& estPos_next){
+
+
+}
+
+
 // Returns the approximate polygon of the concave hull of the cloud
 // The points are being projected to the xy plane
 vector<btVector3> polyCorners(ColorCloudPtr cloud) {
