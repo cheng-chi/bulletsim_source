@@ -59,7 +59,7 @@ cd depends; ./download_debs_trusty.sh
 sudo apt-get install build-essential cmake pkg-config
 sudo dpkg -i debs/libusb*deb
 sudo apt-get install libturbojpeg libjpeg-turbo8-dev
-sudo dpkg -i debs/libglfw3*deb; sudo apt-get install -f;
+sudo dpkg -i debs/libglfw3*deb; sudo apt-get install -f
 cd ..
 mkdir build && cd build
 cmake .. -DCMAKE_INSTALL_PREFIX=$HOME/freenect2 -DENABLE_CXX11=ON
@@ -69,7 +69,7 @@ sudo cp ../platform/linux/udev/90-kinect2.rules /etc/udev/rules.d/
 ```
 Plug in Kinect V2 to USB3.0, run the test program for libfreenect2
 ```Bash
-cd ../bin
+cd bin
 ./Protonect gl
 ./Protonect cl
 ./Protonect cpu
@@ -108,8 +108,8 @@ source ~/.bashrc
 ### 2. Compile ROS packages "bulletsim_msgs" and "bulletsim_python" for customized ROS messages
 #### 2.1 Copy the "bulletsim_msgs" and "bulletsim_python" folders to Catkin workspace
 ```Bash
-sudo cp -R $BULLETSIM_SOURCE_DIR/src/bulletsim_msgs ~/catkin_ws/src
-sudo cp -R $BULLETSIM_SOURCE_DIR/src/bulletsim_python ~/catkin_ws/src
+cp -R $BULLETSIM_SOURCE_DIR/src/bulletsim_msgs ~/catkin_ws/src
+cp -R $BULLETSIM_SOURCE_DIR/src/bulletsim_python ~/catkin_ws/src
 ```
 #### 2.2. Catkin_make the ROS package and create a project for Eclipse
 ```Bash
@@ -120,8 +120,8 @@ catkin_make --force-cmake -G"Eclipse CDT4 - Unix Makefiles"
 ### 3. Compile "fgt" and "cpd" packages for rope tracking
 #### 3.1 Copy the "fgt" and "cpd" folders to outside
 ```Bash
-sudo cp -R $BULLETSIM_SOURCE_DIR/lib/fgt ~/DeformableTracking
-sudo cp -R $BULLETSIM_SOURCE_DIR/lib/cpd ~/DeformableTracking
+cp -R $BULLETSIM_SOURCE_DIR/lib/fgt ~/DeformableTracking
+cp -R $BULLETSIM_SOURCE_DIR/lib/cpd ~/DeformableTracking
 ```
 #### 3.2 Compile package "fgt"
 ```Bash
