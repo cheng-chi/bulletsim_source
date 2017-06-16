@@ -26,6 +26,7 @@ mkdir -p ~/catkin_ws/src
 cd ~/catkin_ws/
 catkin_make
 echo "source ~/catkin_ws/devel/setup.bash" >> ~/.bashrc
+source ~/.bashrc
 ```
 
 ### 3. Driver for Kinect V1
@@ -43,7 +44,7 @@ Your computer needs to have USB3.0
 
 Install the latest versoin of Nivida GPU driver. Restart computer after GPU driver installation.
 ```Bash
-sudo apt-get install nvidia-LatestVersion
+sudo apt-get install nvidia-3 (press tab and install the one with the largest version number, such as 340, 375)
 ```
 Use ocl-icd-libopencl1 to replace nvidia-libopencl1
 ```Bash
@@ -104,17 +105,40 @@ echo 'export BULLETSIM_SOURCE_DIR=~/DeformableTracking/bulletsim_source' >> ~/.b
 echo 'export BULLETSIM_BUILD_DIR=~/DeformableTracking/bulletsim_build' >> ~/.bashrc
 source ~/.bashrc
 ```
-### 2. Copy the "bulletsim_msgs" and "bulletsim_python" folders to Catkin workspace
+### 2. Compile ROS packages "bulletsim_msgs" and "bulletsim_python" for customized ROS messages
+#### 2.1 Copy the "bulletsim_msgs" and "bulletsim_python" folders to Catkin workspace
 ```Bash
 sudo cp -R $BULLETSIM_SOURCE_DIR/src/bulletsim_msgs ~/catkin_ws/src
 sudo cp -R $BULLETSIM_SOURCE_DIR/src/bulletsim_python ~/catkin_ws/src
 ```
-### 3. Catkin Make the ROS package and create a project for Eclipse
+#### 2.2. Catkin_make the ROS package and create a project for Eclipse
 ```Bash
 cd ~/catkin_ws
 catkin_make --force-cmake -G"Eclipse CDT4 - Unix Makefiles"
 ```
-### 4. Create two Eclipse projects (Release and Debug) to folder bulletsim_build
+
+### 3. Compile "fgt" and "cpd" packages for rope tracking
+#### 3.1 Copy the "fgt" and "cpd" folders to outside
+```Bash
+sudo cp -R $BULLETSIM_SOURCE_DIR/lib/fgt ~/DeformableTracking
+sudo cp -R $BULLETSIM_SOURCE_DIR/lib/cpd ~/DeformableTracking
+```
+#### 3.2 Compile package "fgt"
+```Bash
+mkdir ~/DeformableTracking/fgt/build && cd ~/DeformableTracking/fgt/build
+cmake ..  -DCMAKE_BUILD_TYPE=Release
+make && sudo make install
+make test
+```
+#### 3.3 Compile package "cpd"
+```Bash
+mkdir ~/DeformableTracking/cpd/build && cd ~/DeformableTracking/cpd/build
+cmake ..  -DCMAKE_BUILD_TYPE=Release -DWITH_FGT=ON
+make && sudo make install
+make test
+```
+
+### 4. Create two Eclipse projects (Release and Debug) to folder "bulletsim_build"
 ```Bash
 cd $BULLETSIM_SOURCE_DIR
 ./make_eclipse_project.sh
