@@ -42,7 +42,7 @@ roslaunch freenect_launch freenect.launch
 ### 4. Driver for Kinect V2
 Your computer needs to have USB3.0
 
-Install the latest versoin of Nivida GPU driver. Restart computer after GPU driver installation.
+Install the latest versoin of Nivida GPU driver. Restart computer after GPU driver installation:
 ```Bash
 sudo apt-get install nvidia-3 (press tab and install the one with the largest version number, such as 340, 375)
 ```
@@ -88,10 +88,15 @@ Test whether the kinect data is published as ROS Topic
 roslaunch kinect2_bridge kinect2_bridge.launch
 rostopic list
 ```
-
-### 5. Other dependency for bulletsim
+### 5. update opencv to include the opencv-nonfree module
 ```Bash
-sudo apt-get install libopenscenegraph-dev python-networkx
+sudo add-apt-repository --yes ppa:xqms/opencv-nonfree
+sudo apt-get update 
+sudo apt-get install libopencv-nonfree-dev
+```
+### 6. Other dependency for bulletsim
+```Bash
+sudo apt-get install libopenscenegraph-dev python-networkx python-scipy
 ```
 
 ## II. Install bulletsim
@@ -115,6 +120,11 @@ cp -R $BULLETSIM_SOURCE_DIR/src/bulletsim_python ~/catkin_ws/src
 ```Bash
 cd ~/catkin_ws
 catkin_make --force-cmake -G"Eclipse CDT4 - Unix Makefiles"
+```
+Check whether the customized messages and srvices ("bulletsim_msg/...") are recognized by ROS
+```Bash
+rosmsg list 
+rossrv list
 ```
 
 ### 3. Compile "fgt" and "cpd" packages for rope tracking
