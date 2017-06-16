@@ -90,6 +90,7 @@ ColorCloudPtr removeOutliers(const ColorCloudPtr in, float thresh, int k) {
 
 ColorCloudPtr removeRadiusOutliers(const ColorCloudPtr in, float radius, int minK) {
 	ColorCloudPtr out(new ColorCloud());
+	if (in->size() <= minK) return out;
 	pcl::RadiusOutlierRemoval<ColorPoint> outrem;
 	outrem.setInputCloud(in);
 	outrem.setRadiusSearch(radius);
