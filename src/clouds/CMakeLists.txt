@@ -30,6 +30,9 @@ target_link_libraries(preprocessor_color_node clouds utils ${PCL_LIBRARIES} ${Op
 add_executable(preprocessor_depth_node preprocessor_depth_node.cpp)
 target_link_libraries(preprocessor_depth_node clouds utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${catkin_LIBRARIES} tf cv_bridge image_transport boost_program_options)
 
+add_executable(preprocessor_segmentation_node preprocessor_segmentation_node.cpp)
+target_link_libraries(preprocessor_segmentation_node clouds utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${catkin_LIBRARIES} tf cv_bridge image_transport boost_program_options)
+
 add_executable(cloud_merger_node cloud_merger_node.cpp)
 target_link_libraries(cloud_merger_node clouds utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${catkin_LIBRARIES} tf cv_bridge boost_program_options)
 
