@@ -23,6 +23,8 @@ public:
 	Eigen::MatrixXf m_estPts;
 	Eigen::MatrixXf m_stdev;
 	Eigen::VectorXf m_priorDist;
+	////////////////
+	Eigen::MatrixXf m_estPts_next_CPD;
 
 	// observed variables
 	Eigen::MatrixXf m_obsPts;
@@ -60,6 +62,6 @@ public:
 	PlotSpheres::Ptr m_estTransPlot;
 	PlotSpheres::Ptr m_estCalcPlot;
 	PlotLines::Ptr m_corrPlot;
-	bool m_enableObsInlierPlot, m_enableObsPlot, m_enableObsTransPlot, m_enableEstPlot, m_enableEstTransPlot, m_enableEstCalcPlot, m_enableCorrPlot;
+	bool m_enableObsInlierPlot, m_enableObsPlot, m_enableObsTransPlot, m_enableEstPlot, m_enableEstTransPlot, m_enableEstCalcPlot, m_enableCorrPlot, m_enableEstPointPlot;
 	int m_nodeCorrPlot;
 };

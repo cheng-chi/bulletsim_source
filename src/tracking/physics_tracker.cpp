@@ -117,25 +117,19 @@ Eigen::MatrixXf PhysicsTracker::CPDupdate() {
 	Eigen::MatrixXd simCld = m_estPts.cast <double> ();
 
 	cpd::Nonrigid Nonrigid;
-	//cpd::GaussTransformFgt fgt;
-	//fgt.method(cpd::FgtMethod::Ifgt);
-	//Nonrigid.gauss_transform(std::move(std::unique_ptr<cpd::GaussTransform>(fgt)));
 	Nonrigid.tolerance(1e-4);
 	Nonrigid.beta(2.0);
+//	std::unique_ptr<cpd::GaussTransformFgt> fgt(new cpd::GaussTransformFgt());
+//	fgt->method(cpd::FgtMethod::DirectTree);
+//	Nonrigid.gauss_transform(std::move(fgt));
+
 	cpd::NonrigidResult result = Nonrigid.run(pointCld, simCld);
-
-	return result.points.cast <float> ();
+	m_estPts_next_CPD = result.points.cast <float> ();
+	return m_estPts_next_CPD;
 	//m_objFeatures->m_obj->CPDapplyEvidence(toBulletVectors(result.points.cast <float> ()));
 
-//    cpd::Runner<cpd::Nonrigid, cpd::FgtComparer> runner;
 //    runner.correspondence(false).outliers(0.1).normalize(true).max_iterations(150).sigma2(0.0).tolerance(1e-5);
-//
-//    Eigen::MatrixXd pointCld = m_obsPts.cast <double> ();
-//    Eigen::MatrixXd simCld = m_estPts.cast <double> ();
-//
-//    cpd::Nonrigid::Result result = runner.run(pointCld, simCld);
 
-	//m_objFeatures->m_obj->CPDapplyEvidence(toBulletVectors(result.points.cast <float> ()));
 }
 
 
@@ -159,6 +153,7 @@ PhysicsTrackerVisualizer::PhysicsTrackerVisualizer(Scene* scene, PhysicsTracker:
 					m_enableEstPlot(false),
 					m_enableEstTransPlot(false),
 					m_enableEstCalcPlot(false),
+					m_enableEstPointPlot(false),
 					m_enableCorrPlot(false),
 					m_nodeCorrPlot(-1)
 {
@@ -178,6 +173,7 @@ PhysicsTrackerVisualizer::PhysicsTrackerVisualizer(Scene* scene, PhysicsTracker:
 	m_scene->addVoidKeyCallback('O',boost::bind(toggle, &m_enableObsTransPlot), "plot observations (lab colorspace)");
 	m_scene->addVoidKeyCallback('i',boost::bind(toggle, &m_enableObsInlierPlot), "plot observations colored by inlier frac");
 	m_scene->addVoidKeyCallback('r',boost::bind(toggle, &m_enableEstCalcPlot), "plot target positions for nodes");
+	m_scene->addVoidKeyCallback('t',boost::bind(toggle, &m_enableEstPointPlot), "plot target positions for nodes (for CPD method)");
 
 	m_scene->addVoidKeyCallback('[',boost::bind(add, &m_nodeCorrPlot, -1), "??");
 	m_scene->addVoidKeyCallback(']',boost::bind(add, &m_nodeCorrPlot, 1), "??");
@@ -209,6 +205,13 @@ void PhysicsTrackerVisualizer::update() {
 
 	if (m_enableEstCalcPlot) {
 		MatrixXf nodes = calculateNodesNaive(estPts, obsPts, pZgivenC);
+		plotNodesAsSpheres(FE::activeFeatures2Feature(nodes, FE::FT_XYZ), FE::activeFeatures2Feature(nodes, FE::FT_LAB), VectorXf::Ones(nodes.rows()), FE::activeFeatures2Feature(stdev, FE::FT_XYZ), m_estCalcPlot);
+	}
+	else m_estCalcPlot->clear();
+
+	/////////////
+	if (m_enableEstPointPlot) {
+		MatrixXf nodes = m_tracker->m_estPts_next_CPD;
 		plotNodesAsSpheres(FE::activeFeatures2Feature(nodes, FE::FT_XYZ), FE::activeFeatures2Feature(nodes, FE::FT_LAB), VectorXf::Ones(nodes.rows()), FE::activeFeatures2Feature(stdev, FE::FT_XYZ), m_estCalcPlot);
 	}
 	else m_estCalcPlot->clear();
