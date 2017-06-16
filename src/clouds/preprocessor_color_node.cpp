@@ -43,6 +43,7 @@ struct LocalConfig: Config {
 	static string nodeNS;
 	static float downsample;
 	static bool displayCloud;
+	static bool aboveTableFlag;
 	static bool removeOutliers;
 	static float clusterTolerance;
 	static float clusterMinSize;
@@ -65,6 +66,7 @@ struct LocalConfig: Config {
 		params.push_back(new Parameter<string> ("nodeNS", &nodeNS, "node namespace"));
 		params.push_back(new Parameter<float> ("downsample", &downsample, "downsample voxel grid size. 0 means no"));
 		params.push_back(new Parameter<bool> ("displayCloud", &displayCloud, "display point cloud"));
+		params.push_back(new Parameter<bool> ("aboveTableFlag", &aboveTableFlag, "Enable the filter to filter out points below table"));
 		params.push_back(new Parameter<bool> ("removeOutliers", &removeOutliers, "remove outliers"));
 		params.push_back(new Parameter<float> ("clusterTolerance", &clusterTolerance, "points within this distance are in the same cluster"));
 		params.push_back(new Parameter<float> ("clusterMinSize", &clusterMinSize, "the clusters found must have at least this number of points. 0 means no filtering"));
@@ -85,6 +87,7 @@ string LocalConfig::inputTopic = "/drop/kinect1/points";
 string LocalConfig::nodeNS = "/preprocessor/kinect1";
 float LocalConfig::downsample = 0;
 bool LocalConfig::displayCloud = false;
+bool LocalConfig::aboveTableFlag = false;
 bool LocalConfig::removeOutliers = false;
 float LocalConfig::clusterTolerance = 0.03;
 float LocalConfig::clusterMinSize = 0;
@@ -187,17 +190,20 @@ public:
 
 		cv::Mat mask = pos_red;
 
+		if (LocalConfig::aboveTableFlag){
+			if (!m_inited) {
+				ColorCloudPtr cloud_filtered = downsampleCloud(cloud_in, 0.005);
+				cloud_filtered = filterPlane(cloud_filtered, 0.005, coefficients);
+				std::cerr << "Model coefficients: " << coefficients->values[0] << " "
+						<< coefficients->values[1] << " "
+						<< coefficients->values[2] << " "
+						<< coefficients->values[3] << std::endl;
+			} else {
+				mask = aboveTableMask(cloud_in, mask, coefficients, LocalConfig::offset);
+			}
 
-		if (!m_inited) {
-			ColorCloudPtr cloud_filtered = downsampleCloud(cloud_in, 0.005);
-			cloud_filtered = filterPlane(cloud_filtered, 0.005, coefficients);
-			std::cerr << "Model coefficients: " << coefficients->values[0] << " "
-			                                    << coefficients->values[1] << " "
-			                                    << coefficients->values[2] << " "
-			                                    << coefficients->values[3] << std::endl;
-		} else {
-			mask = aboveTableMask(cloud_in, mask, coefficients, LocalConfig::offset);
 		}
+
 
 
 		//display point cloud

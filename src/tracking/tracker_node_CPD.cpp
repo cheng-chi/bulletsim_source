@@ -12,6 +12,7 @@
 /////////////////////#include <cv.h>
 #include <opencv/cv.h>
 #include <bulletsim_msgs/TrackedObject.h>
+#include <sys/timeb.h>
 
 ////////////////////////////
 #include <pcl_conversions/pcl_conversions.h>
@@ -190,17 +191,25 @@ int main(int argc, char* argv[]) {
 		cloudFeatures->updateInputs(filteredCloud, rgb_images[0], transformers[0]);
 		for (int i=0; i<nCameras; i++)
 			visInterface->visibilities[i]->updateInput(depth_images[i]);
+
+		alg->updateFeatures();
+		Eigen::MatrixXf estPos_next = alg->CPDupdate();
+
 		pending = false;
 		while (ros::ok() && !pending) {
+
+			struct timeb Time1, Time2;
+			ftime(&Time1);
+
 			//Do iteration
 			alg->updateFeatures();
-			alg->expectationStep();
-			alg->maximizationStep(applyEvidence);
-			//alg->CPDupdate();
-
+			objectFeatures->m_obj->CPDapplyEvidence(toBulletVectors(estPos_next));
 			trackingVisualizer->update();
+			scene.step(.03, 2, .015);
 
-			scene.step(.03,2,.015);
+			ftime(&Time2);
+			std::cout << "Bullet Time:" << (Time2.time-Time1.time)*1000 + (Time2.millitm - Time1.millitm) << "ms" << std::endl;
+
 			ros::spinOnce();
 		}
 		objPub.publish(toTrackedObjectMessage(trackedObj));

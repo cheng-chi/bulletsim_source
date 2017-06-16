@@ -1,24 +1,15 @@
 find_package(Cpd REQUIRED)
 
-message( "CPD_LIBARIES: ${CPD_LIBRARIES}" )
-message( "CPD_LIB: ${CPD_LIB}" )
-message( "CPD_INCLUDE_DIRS: ${CPD_INCLUDE_DIRS}" )
-message( "CPD_INCLUDE_DIR: ${CPD_INCLUDE_DIR}" )
-
-
-
 include_directories(
   ${BULLETSIM_SOURCE_DIR}/src
   ${PCL_INCLUDE_DIRS}
   ${TETGEN_DIR}
   ${ROS_ROOT_DIR}/include
-  /usr/local/include
 )
 
 link_directories(
   ${TETGEN_DIR}
   ${ROS_ROOT_DIR}/lib
-  /usr/local/lib
 )
 
 add_library(tracking 
@@ -43,10 +34,13 @@ add_library(tracking
         cam_sync.cpp
 )
 
-target_link_libraries(tracking PUBLIC simulation clouds cv_bridge  Cpd::Library-C++)
+target_link_libraries(tracking simulation clouds cv_bridge  Cpd::Library-C++)
 	
 add_executable(tracker_node tracker_node.cpp)
-target_link_libraries(tracker_node PUBLIC Cpd::Library-C++ tracking simulation clouds tf cv_bridge ${OpenCV_LIBS} ${catkin_LIBRARIES} boost_signals boost_program_options)
+target_link_libraries(tracker_node tracking simulation clouds tf cv_bridge ${OpenCV_LIBS} ${catkin_LIBRARIES} boost_signals boost_program_options)
+
+add_executable(tracker_node_CPD tracker_node_CPD.cpp)
+target_link_libraries(tracker_node_CPD tracking simulation clouds tf cv_bridge ${OpenCV_LIBS} ${catkin_LIBRARIES} boost_signals boost_program_options)
 
 #add_executable(simulated_tracker simulated_tracker.cpp)
 #target_link_libraries(simulated_tracker tracking simulation clouds tf cv_bridge ${OpenCV_LIBS} ${catkin_LIBRARIES} boost_signals boost_program_options)

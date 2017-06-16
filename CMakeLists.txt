@@ -1,14 +1,14 @@
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 2.6)
 
 project(bulletsim)
 
 set(BULLETSIM_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-#set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMakeModules")
 
 if (NOT CMAKE_BUILD_TYPE)
  set(CMAKE_BUILD_TYPE "RelWithDebInfo")
 endif (NOT CMAKE_BUILD_TYPE)
-message("if cmake can't find anything, you need to put /opt/ros/indigo/share on 
+message("if cmake can't find anything, you need to put /opt/ros/indigo/share on your ROS_PACKAGE_PATH")
+
 # external libraries
 find_package(Boost COMPONENTS system filesystem program_options REQUIRED)
 find_package(Eigen3 REQUIRED)
@@ -65,5 +65,4 @@ option(BUILD_PHASESPACE "Build Phasespace tracking code" off)
 set(BUILD_SHARED_LIBS off)
 
 add_subdirectory(lib)
-add_subdirectory(src)your ROS_PACKAGE_PATH")
-
+add_subdirectory(src)

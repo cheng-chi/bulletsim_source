@@ -12,14 +12,8 @@
 /////////////////////
 #include <boost/bind.hpp>
 #include "simulation/util.h"
-#include <iostream>
-#include <cpd/logging.hpp>
+#include <cpd/gauss_transform_fgt.hpp>
 #include <cpd/nonrigid.hpp>
-#include <cpd/utils.hpp>
-#include <cpd/vendor/spdlog/spdlog.h>
-#include <cpd/comparer/fgt.hpp>
-#include <cpd/rigid.hpp>
-#include <cpd/runner.hpp>
 
 
 using namespace Eigen;
@@ -117,18 +111,21 @@ void PhysicsTracker::maximizationStep(bool apply_evidence) {
 
 
 
-void PhysicsTracker::CPDupdate() {
+Eigen::MatrixXf PhysicsTracker::CPDupdate() {
 
-	//m_pZgivenC = calculateResponsibilities(m_estPts, m_obsPts);
+	Eigen::MatrixXd pointCld = m_obsPts.cast <double> ();
+	Eigen::MatrixXd simCld = m_estPts.cast <double> ();
 
-	cpd::Matrix fixed = cpd::matrix_from_path("adfafd");
-	cpd::Matrix moving = cpd::matrix_from_path("adfafd");
+	cpd::Nonrigid Nonrigid;
+	//cpd::GaussTransformFgt fgt;
+	//fgt.method(cpd::FgtMethod::Ifgt);
+	//Nonrigid.gauss_transform(std::move(std::unique_ptr<cpd::GaussTransform>(fgt)));
+	Nonrigid.tolerance(1e-4);
+	Nonrigid.beta(2.0);
+	cpd::NonrigidResult result = Nonrigid.run(pointCld, simCld);
 
-	cpd::Runner<cpd::Nonrigid, cpd::FgtComparer> runner;
-	runner.correspondence(true).outliers(0.1).normalize(true).max_iterations(150).sigma2(0.0).tolerance(1e-5);
-	cpd::Nonrigid::Result result = runner.run(fixed, moving);
-
-
+	return result.points.cast <float> ();
+	//m_objFeatures->m_obj->CPDapplyEvidence(toBulletVectors(result.points.cast <float> ()));
 
 //    cpd::Runner<cpd::Nonrigid, cpd::FgtComparer> runner;
 //    runner.correspondence(false).outliers(0.1).normalize(true).max_iterations(150).sigma2(0.0).tolerance(1e-5);
