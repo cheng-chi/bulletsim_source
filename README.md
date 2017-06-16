@@ -28,8 +28,14 @@ catkin_make
 echo "source ~/catkin_ws/devel/setup.bash" >> ~/.bashrc
 source ~/.bashrc
 ```
+### 3. update opencv to include the opencv-nonfree module
+```Bash
+sudo add-apt-repository --yes ppa:xqms/opencv-nonfree
+sudo apt-get update 
+sudo apt-get install libopencv-nonfree-dev
+```
 
-### 3. Driver for Kinect V1
+### 4. Driver for Kinect V1
 ```Bash
 sudo apt-get install libfreenect-dev
 sudo apt-get install ros-indigo-freenect-launch
@@ -39,7 +45,7 @@ Test Kinect V1 connection by
 roslaunch freenect_launch freenect.launch
 ```
 
-### 4. Driver for Kinect V2
+### 5. Driver for Kinect V2
 Your computer needs to have USB3.0
 
 Install the latest versoin of Nivida GPU driver. Restart computer after GPU driver installation:
@@ -87,12 +93,6 @@ Test whether the kinect data is published as ROS Topic
 ```Bash
 roslaunch kinect2_bridge kinect2_bridge.launch
 rostopic list
-```
-### 5. update opencv to include the opencv-nonfree module
-```Bash
-sudo add-apt-repository --yes ppa:xqms/opencv-nonfree
-sudo apt-get update 
-sudo apt-get install libopencv-nonfree-dev
 ```
 ### 6. Other dependency for bulletsim
 ```Bash
