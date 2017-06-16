@@ -9,7 +9,6 @@
 #include <tf/tf.h>
 #include <tf/transform_listener.h>
 #include <cv_bridge/cv_bridge.h>
-/////////////////////#include <cv.h>
 #include <opencv/cv.h>
 #include <bulletsim_msgs/TrackedObject.h>
 
@@ -55,6 +54,7 @@ vector<CoordinateTransformer*> transformers;
 
 ColorCloudPtr filteredCloud(new ColorCloud()); // filtered cloud in ground frame
 bool pending = false; // new message received, waiting to be processed
+bool firstCallback = true;
 
 tf::TransformListener* listener;
 
@@ -76,7 +76,13 @@ void callback(const vector<sensor_msgs::PointCloud2ConstPtr>& cloud_msg, const v
 		extractImageAndMask(cv_bridge::toCvCopy(image_msgs[2*i])->image, rgb_images[i], mask_images[i]);
 		depth_images[i] = cv_bridge::toCvCopy(image_msgs[2*i+1])->image;
 	}
-	filteredCloud = downsampleCloud(filteredCloud, TrackingConfig::downsample*METERS);
+
+	if (firstCallback) {
+		filteredCloud = downsampleCloud(filteredCloud, 0.01*METERS);
+		firstCallback = false;
+	} else {
+		filteredCloud = downsampleCloud(filteredCloud, TrackingConfig::downsample*METERS);
+	}
 	//filteredCloud = filterZ(filteredCloud, -0.1*METERS, 0.20*METERS);
 
 	pending = true;

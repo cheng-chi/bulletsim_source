@@ -9,7 +9,6 @@
 #include <tf/tf.h>
 #include <tf/transform_listener.h>
 #include <cv_bridge/cv_bridge.h>
-/////////////////////#include <cv.h>
 #include <opencv/cv.h>
 #include <bulletsim_msgs/TrackedObject.h>
 #include <sys/timeb.h>
@@ -56,6 +55,7 @@ vector<CoordinateTransformer*> transformers;
 
 ColorCloudPtr filteredCloud(new ColorCloud()); // filtered cloud in ground frame
 bool pending = false; // new message received, waiting to be processed
+bool firstCallback = true;
 
 tf::TransformListener* listener;
 
@@ -77,9 +77,14 @@ void callback(const vector<sensor_msgs::PointCloud2ConstPtr>& cloud_msg, const v
 		extractImageAndMask(cv_bridge::toCvCopy(image_msgs[2*i])->image, rgb_images[i], mask_images[i]);
 		depth_images[i] = cv_bridge::toCvCopy(image_msgs[2*i+1])->image;
 	}
-	filteredCloud = downsampleCloud(filteredCloud, TrackingConfig::downsample*METERS);
-	//filteredCloud = filterZ(filteredCloud, -0.1*METERS, 0.20*METERS);
 
+	if (firstCallback) {
+		filteredCloud = downsampleCloud(filteredCloud, 0.01*METERS);   //give a dense point cloud for better rope initialization
+		firstCallback = false;
+	} else {
+		filteredCloud = downsampleCloud(filteredCloud, TrackingConfig::downsample*METERS);
+	}
+	//filteredCloud = filterZ(filteredCloud, -0.1*METERS, 0.20*METERS);
 	pending = true;
 }
 
@@ -189,8 +194,8 @@ int main(int argc, char* argv[]) {
 	while (!exit_loop && ros::ok()) {
 		//Update the inputs of the featureExtractors and visibilities (if they have any inputs)
 		cloudFeatures->updateInputs(filteredCloud, rgb_images[0], transformers[0]);
-		for (int i=0; i<nCameras; i++)
-			visInterface->visibilities[i]->updateInput(depth_images[i]);
+		//for (int i=0; i<nCameras; i++)
+		//	visInterface->visibilities[i]->updateInput(depth_images[i]);
 
 		alg->updateFeatures();
 		Eigen::MatrixXf estPos_next = alg->CPDupdate();
@@ -198,17 +203,11 @@ int main(int argc, char* argv[]) {
 		pending = false;
 		while (ros::ok() && !pending) {
 
-			struct timeb Time1, Time2;
-			ftime(&Time1);
-
 			//Do iteration
 			alg->updateFeatures();
 			objectFeatures->m_obj->CPDapplyEvidence(toBulletVectors(estPos_next));
 			trackingVisualizer->update();
 			scene.step(.03, 2, .015);
-
-			ftime(&Time2);
-			std::cout << "Bullet Time:" << (Time2.time-Time1.time)*1000 + (Time2.millitm - Time1.millitm) << "ms" << std::endl;
 
 			ros::spinOnce();
 		}
@@ -222,4 +221,10 @@ int main(int argc, char* argv[]) {
 //		ros::spinOnce();
 //
 //	}
+
+//	struct timeb Time1, Time2;
+//	ftime(&Time1);
+//	ftime(&Time2);
+//	std::cout << "Bullet Time:" << (Time2.time-Time1.time)*1000 + (Time2.millitm - Time1.millitm) << "ms" << std::endl;
+
 }
