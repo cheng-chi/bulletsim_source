@@ -212,7 +212,7 @@ void PhysicsTrackerVisualizer::update() {
 	/////////////
 	if (m_enableEstPointPlot) {
 		MatrixXf nodes = m_tracker->m_estPts_next_CPD;
-		plotNodesAsSpheres(FE::activeFeatures2Feature(nodes, FE::FT_XYZ), FE::activeFeatures2Feature(nodes, FE::FT_LAB), VectorXf::Ones(nodes.rows()), FE::activeFeatures2Feature(stdev, FE::FT_XYZ), m_estCalcPlot);
+		plotNodesAsSpheres(FE::activeFeatures2Feature(nodes, FE::FT_XYZ), objFeatures->getFeatures(FE::FT_LAB), VectorXf::Ones(nodes.rows()), FE::activeFeatures2Feature(stdev, FE::FT_XYZ), m_estCalcPlot);
 	}
 	else m_estCalcPlot->clear();
 

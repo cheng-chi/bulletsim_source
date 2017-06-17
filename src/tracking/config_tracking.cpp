@@ -9,8 +9,8 @@ std::string TrackingConfig::fullCloudTopic = "/kinect1/depth_registered/points";
 
 std::vector<std::string> TrackingConfig::cameraTopics = boost::assign::list_of("/kinect1");
 //// Define the dimension for registration: xyz + color or just xyz
-//std::vector<int> TrackingConfig::featureTypes = boost::assign::list_of(FeatureExtractor::FT_XYZ);
-std::vector<int> TrackingConfig::featureTypes = boost::assign::list_of(FeatureExtractor::FT_XYZ)(FeatureExtractor::FT_LAB);
+std::vector<int> TrackingConfig::featureTypes = boost::assign::list_of(FeatureExtractor::FT_XYZ);
+//std::vector<int> TrackingConfig::featureTypes = boost::assign::list_of(FeatureExtractor::FT_XYZ)(FeatureExtractor::FT_LAB);
 
 float TrackingConfig::downsample = 0.02;
 
