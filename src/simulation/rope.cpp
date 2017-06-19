@@ -179,6 +179,9 @@ void CapsuleRope::setTexture(cv::Mat image, cv::Mat mask, const btTransform& cam
 	vector<btVector3> nodes = getNodes();
 	int x_res = 4;
 	int ang_res = 10;
+	int aveR=0;
+	int aveG=0;
+	int aveB=0;
 	cv::Mat tex_image(1, nodes.size()*x_res, CV_8UC3);
 	vector<btMatrix3x3> rotations = getRotations();
 	vector<float> half_heights = getHalfHeights();
@@ -226,14 +229,39 @@ void CapsuleRope::setTexture(cv::Mat image, cv::Mat mask, const btTransform& cam
 				B_bins[xId].push_back(color[0]);
 				G_bins[xId].push_back(color[1]);
 				R_bins[xId].push_back(color[2]);
+
 			}
 		}
 
+//		for (int xId=0; xId<x_res; xId++) {
+//			tex_image.at<cv::Vec3b>(0,j*x_res+xId)[0] = mean(B_bins[xId]);
+//			tex_image.at<cv::Vec3b>(0,j*x_res+xId)[1] = mean(G_bins[xId]);
+//			tex_image.at<cv::Vec3b>(0,j*x_res+xId)[2] = mean(R_bins[xId]);
+////			tex_image.at<cv::Vec3b>(0,j*x_res+xId)[2] = 170;
+//			std::cout<<mean(B_bins[xId])<<"  "<< mean(G_bins[xId]) << "  " << mean(R_bins[xId]) <<"\n";
+//		}
+
+
 		for (int xId=0; xId<x_res; xId++) {
-			tex_image.at<cv::Vec3b>(0,j*x_res+xId)[0] = mean(B_bins[xId]);
-			tex_image.at<cv::Vec3b>(0,j*x_res+xId)[1] = mean(G_bins[xId]);
-			tex_image.at<cv::Vec3b>(0,j*x_res+xId)[2] = mean(R_bins[xId]);
-		}
+					if(j==0 || ((mean(B_bins[xId])-aveB)<=10 && (mean(B_bins[xId])-aveB)>=-10 && (mean(G_bins[xId])-aveG)<=10 && (mean(G_bins[xId])-aveG)>=-10 && (mean(R_bins[xId])-aveR)<=10 && (mean(R_bins[xId])-aveR)>=-10))
+					{
+						tex_image.at<cv::Vec3b>(0,j*x_res+xId)[0] = mean(B_bins[xId]);
+						tex_image.at<cv::Vec3b>(0,j*x_res+xId)[1] = mean(G_bins[xId]);
+						tex_image.at<cv::Vec3b>(0,j*x_res+xId)[2] = mean(R_bins[xId]);
+						aveR = mean(R_bins[xId]);
+						aveG = mean(G_bins[xId]);
+						aveB = mean(B_bins[xId]);
+						//			tex_image.at<cv::Vec3b>(0,j*x_res+xId)[2] = 170;
+					}
+					else
+					{
+						tex_image.at<cv::Vec3b>(0,j*x_res+xId)[0] = aveB;
+						tex_image.at<cv::Vec3b>(0,j*x_res+xId)[1] = aveG;
+						tex_image.at<cv::Vec3b>(0,j*x_res+xId)[2] = aveR;
+					}
+
+		//			std::cout<<mean(B_bins[xId])<<"  "<< mean(G_bins[xId]) << "  " << mean(R_bins[xId]) <<"\n";
+			}
 
 	}
 

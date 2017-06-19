@@ -40,7 +40,7 @@ def handle_initialization_request(req):
     xyz = np.squeeze(xyz)
     obj_type = determine_object_type(xyz, plotting=args.plotting)
     print "object type:", obj_type
-    
+    print _
     
     if obj_type == "towel":
         xyz = xyz[(xyz[:,2]-np.median(xyz[:,2]))<.05,:]

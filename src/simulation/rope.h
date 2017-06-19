@@ -17,7 +17,8 @@ public:
   btScalar radius;
   int nLinks;
 
-  CapsuleRope(const std::vector<btVector3>& ctrlPoints, float radius_, float angStiffness_=.1, float angDamping_=1, float linDamping_=.75, float angLimit_=.4, float linStopErp_=.2);
+  CapsuleRope(const std::vector<btVector3>& ctrlPoints, float radius_, float angStiffness_=10, float angDamping_=1.5, float linDamping_=.75, float angLimit_=.33, float linStopErp_=.999);
+  /////////////////////////////////////////////////////////////////////////////////////////.1                                                              0.4                    .2
   void init();
   void destroy();
   std::vector<btVector3> getNodes();
