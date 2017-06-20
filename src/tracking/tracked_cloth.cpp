@@ -67,7 +67,33 @@ void TrackedCloth::applyEvidence(const Eigen::MatrixXf& corr, const Eigen::Matri
 //////////////////
 void TrackedCloth::CPDapplyEvidence(const vector<btVector3>& estPos_next){
 
+	vector<btVector3> estPos(m_nNodes), estVel(m_nNodes);
+	btAlignedObjectArray<btSoftBody::Node>& verts = getSim()->softBody->m_nodes;
+	for (int iNode=0; iNode < m_nNodes; ++iNode)  {
+		estPos[iNode] = verts[m_node2vert[iNode]].m_x;
+		estVel[iNode] = verts[m_node2vert[iNode]].m_v;
+	}
 
+	vector<float> masses = toVec(m_masses);
+	int K = estPos.size();
+	assert(estVel.size() == K);
+	assert(masses.size() == K);
+
+	vector<btVector3> nodeImpulses(K);
+	for (int k=0; k<K; k++) {
+		btVector3 dv = -TrackingConfig::kp_cloth * estVel[k] + TrackingConfig::kd_cloth * (estPos_next[k] - estPos[k]);
+		nodeImpulses[k] = masses[k]*dv;
+	}
+
+	int nVerts = verts.size();
+	for (int iVert=0; iVert < nVerts; iVert++) {
+		btVector3 impulse(0,0,0);
+		BOOST_FOREACH(int iNode, m_vert2nodes[iVert]) impulse += nodeImpulses[iNode];
+		impulse/= m_vert2nodes[iVert].size();
+		getSim()->softBody->addForce(impulse, iVert);
+
+		assert(isfinite(impulse.x()) && isfinite(impulse.y()) && isfinite(impulse.z()));
+	}
 }
 
 
