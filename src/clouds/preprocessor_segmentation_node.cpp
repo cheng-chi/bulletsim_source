@@ -38,8 +38,9 @@ struct LocalConfig: Config {
 	static bool displayCloud;
 	static bool displayColorMask;
 	static bool displayDepthMask;
+	static bool displayLowMask;
 	static bool displayHighMask;
-	static bool displayErodeMask;
+	static bool displayThresholdMask;
 	static bool displayCombinedMask;
 	static int averageImages;
 	static int depthThreshold;
@@ -62,8 +63,9 @@ struct LocalConfig: Config {
 			params.push_back(new Parameter<bool> ("displayCloud", &displayCloud, "display the output point cloud"));
 			params.push_back(new Parameter<bool> ("displayColorMask", &displayColorMask, "display the color mask used to filter the point cloud"));
 			params.push_back(new Parameter<bool> ("displayDepthMask", &displayDepthMask, "display the depth mask used to filter the point cloud"));
+			params.push_back(new Parameter<bool> ("displayLowMask", &displayLowMask, "display the low mask used to filter the point cloud"));
 			params.push_back(new Parameter<bool> ("displayHighMask", &displayHighMask, "display the high mask used to filter the point cloud"));
-			params.push_back(new Parameter<bool> ("displayErodeMask", &displayErodeMask, "display the erosion mask used to filter the point cloud"));
+			params.push_back(new Parameter<bool> ("displayThresholdMask", &displayThresholdMask, "display the threshold mask used to filter the point cloud"));
 			params.push_back(new Parameter<bool> ("displayCombinedMask", &displayCombinedMask, "display the combined mask used to filter the point cloud"));
 			params.push_back(new Parameter<int> ("averageImages", &averageImages, "number of depth maps to average for the background depth image"));
 			params.push_back(new Parameter<int> ("depthThreshold", &depthThreshold, "how much closer than the background image something must be to be segmented"));
@@ -85,31 +87,32 @@ int LocalConfig::farClipSampleSize = 15;
 bool LocalConfig::displayCloud = false;
 bool LocalConfig::displayDepthMask = false;
 bool LocalConfig::displayColorMask = false;
+bool LocalConfig::displayLowMask = false;
 bool LocalConfig::displayHighMask = false;
-bool LocalConfig::displayErodeMask = false;
+bool LocalConfig::displayThresholdMask = false;
 bool LocalConfig::displayCombinedMask = false;
 int LocalConfig::averageImages = 20;
 int LocalConfig::depthThreshold = 100;
-int LocalConfig::kSamples = 5;
-float LocalConfig::deviations = 0.5;
+int LocalConfig::kSamples = 10;
+float LocalConfig::deviations = 1.5;
 float LocalConfig::r = 0.025;
 int LocalConfig::n = 10;
-float LocalConfig::downsampleAmount = 0.01;
-float LocalConfig::clusterTolerance = 0.05;
-int LocalConfig::clusterMinSize = 25;
+float LocalConfig::downsampleAmount = 0.006;
+float LocalConfig::clusterTolerance = 0.03;
+int LocalConfig::clusterMinSize = 100;
 
 const std::string CLOUD_NAME = "rendered";
-const int minx=150, maxx=255, miny=100, maxy=255, minz=0, maxz=255;
+const int minx=175, maxx=255, miny=100, maxy=255, minz=0, maxz=255;
 const float BAD_POINT = numeric_limits<float>::quiet_NaN();
 const Mat DEPTH_KERNEL = getStructuringElement( MORPH_CROSS, Size(3, 3));
 const Mat ERODE_KERNEL = getStructuringElement( MORPH_RECT, Size(32, 32));
-
+const int MIN_L = 0, MAX_L = 255, MIN_A = 115, MAX_A = 255, MIN_B = 0, MAX_B = 255;
 
 class PreprocessorSegmentationNode {
 public:
 	ros::Publisher m_cloudPub, m_imagePub, m_depthPub;
 	ColorCloudPtr m_cloud, m_highCloud;
-	Mat m_backgroundDepth, m_depth, m_color, m_depthMask, m_colorMask, m_highMask, m_erodeMask, m_combinedMask;
+	Mat m_backgroundDepth, m_depth, m_color, m_depthMask, m_colorMask, m_highMask, m_lowMask, m_thresholdMask, m_combinedMask;
 	pcl::visualization::PCLVisualizer::Ptr m_visualizer;
 	int m_imagesGathered;
 	int m_maxDepth;
@@ -118,6 +121,7 @@ public:
 
 	ros::Subscriber m_sub;
 
+
 	void cloudCB(const sensor_msgs::PointCloud2ConstPtr& input) {
 		pcl::fromROSMsg(*input, *m_cloud);
 		pcl::copyPointCloud(*m_cloud, *m_highCloud);
@@ -125,51 +129,51 @@ public:
 		m_color = toCVMatImage(m_cloud);
 		m_depth = toCVMatDepthImage(m_cloud);
 
-
 		if(!m_backgroundDepth_init) {
+			//create the background depth image
 			createBackgroundDepth(m_depth);
 		} else {
-			m_colorMask = createColorMask(m_color);
+			m_colorMask = createColorMask(m_color); //looks for red color
 			m_depthMask = createDepthMask(m_depth);
-			m_highMask = createHighMask(m_depthMask);
-			m_erodeMask = createErodeMask(m_highMask);
-			m_combinedMask = createCombinedMask(m_colorMask, m_depthMask, m_highMask, m_erodeMask);
+			m_thresholdMask = createThresholdMask(m_depthMask); //separates rope into parts above and on the table
+			m_highMask = m_depthMask > 1200;
+			m_highMask &= m_thresholdMask > 0; //rope lifted in the air
+			m_lowMask = m_depthMask > 0;
+			m_lowMask &= m_thresholdMask == 0; //rope lying on the table
+			m_combinedMask = createCombinedMask(m_colorMask, m_lowMask, m_highMask);
 
 			if(LocalConfig::displayColorMask) imshow("Color Mask", m_colorMask);
 			if(LocalConfig::displayDepthMask) imshow("Depth Mask", m_depthMask);
 			if(LocalConfig::displayHighMask) imshow("High Mask", m_highMask);
-			if(LocalConfig::displayErodeMask) imshow("Erode Mask", m_erodeMask);
+			if(LocalConfig::displayLowMask) imshow("High Mask", m_lowMask);
+			if(LocalConfig::displayThresholdMask) imshow("Threshold Mask", m_thresholdMask);
 			if(LocalConfig::displayCombinedMask) imshow("Combined Mask", m_combinedMask);
 
 
-			createHighCloud();
-			createCloud();
+			for (int i=0; i<m_cloud->height; ++i) {
+				for (int j=0; j<m_cloud->width; ++j) {
+					if (m_combinedMask.at<uint8_t>(i,j) == 0) {
+						m_cloud->at(m_cloud->width*i+j).x =  BAD_POINT;
+						m_cloud->at(m_cloud->width*i+j).y =  BAD_POINT;
+						m_cloud->at(m_cloud->width*i+j).z =  BAD_POINT;
+						m_cloud->at(m_cloud->width*i+j).r = 0;
+						m_cloud->at(m_cloud->width*i+j).g = 0;
+						m_cloud->at(m_cloud->width*i+j).b = 0;
+					}
+				}
+			}
 
 			vector<int> indices;
-			pcl::removeNaNFromPointCloud(*m_highCloud, *m_highCloud, indices);
+			pcl::removeNaNFromPointCloud(*m_cloud, *m_cloud, indices);
 
-			m_highCloud = removeOutliers(m_highCloud, LocalConfig::deviations, LocalConfig::kSamples);
-
-			*m_cloud = *m_highCloud + *m_cloud;
-
+			m_cloud = removeOutliers(m_cloud, LocalConfig::deviations, LocalConfig::kSamples);
 			m_cloud = downsampleCloud(m_cloud, LocalConfig::downsampleAmount);
-			m_cloud = removeRadiusOutliers(m_cloud, LocalConfig::r, LocalConfig::n);
+//			m_cloud = removeRadiusOutliers(m_cloud, LocalConfig::r, LocalConfig::n);
 			m_cloud = clusterFilter(m_cloud, LocalConfig::clusterTolerance, LocalConfig::clusterMinSize);
 
-			if(LocalConfig::displayCloud) {
-				if(m_visualizer_init) {
-					m_visualizer->updatePointCloud(m_cloud, CLOUD_NAME);
-				} else {
-					m_visualizer->setBackgroundColor (0, 0, 0);
-					m_visualizer->initCameraParameters ();
-					m_visualizer->setCameraPosition(0, 0, 0, 0, -1, 0, 0.8575);
-					m_visualizer->addPointCloud<ColorPoint> (m_cloud, CLOUD_NAME);
-					m_visualizer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, CLOUD_NAME);
-					m_visualizer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_OPACITY, 1, CLOUD_NAME);
 
-					m_visualizer_init = true;
-				}
-				m_visualizer->spinOnce();
+			if(LocalConfig::displayCloud) {
+				displayCloud(m_cloud);
 			}
 
 			cvtColor(m_color, m_color, CV_BGR2BGRA);
@@ -203,13 +207,20 @@ public:
 	}
 
 	Mat createColorMask(Mat color) {
-		return colorSpaceMask(color, 150, 255, 100, 255, 0, 255, CV_BGR2HSV);
+		Mat red = colorSpaceMask(color, 0, 255, 160, 255, 0, 255, CV_BGR2Lab);
+		Mat green = colorSpaceMask(color, 50, 100, 0, 255, 0, 255, CV_BGR2HSV);
+
+		return red;// + green;
 	}
 
 	void createBackgroundDepth(Mat depth) {
 		depth.convertTo(depth, CV_16UC1, 30000.0);
 
 		if(m_imagesGathered < LocalConfig::averageImages) {
+			if(m_imagesGathered == 0) {
+				ROS_INFO("Gathering background depth samples");
+			}
+
 			//gather background images
 			depth.copyTo(m_backgroundImages[m_imagesGathered]);
 			++m_imagesGathered;
@@ -261,15 +272,14 @@ public:
 			} else {
 				m_maxDepth = 65535;
 			}
-
 			m_backgroundDepth_init = true;
+
+			ROS_INFO("Created background depth image");
 		}
 	}
 
 	Mat createDepthMask(Mat depth) {
-		depth = filterDepth(depth);
-		erode(depth, depth, DEPTH_KERNEL);
-		dilate(depth, depth, DEPTH_KERNEL);
+		depth = filterDepth(depth, false);
 
 		return depth;
 	}
@@ -279,64 +289,20 @@ public:
 		return high;
 	}
 
-	Mat createErodeMask(Mat highMask) {
-		Mat out;
-		dilate( highMask, out, ERODE_KERNEL );
+	Mat createThresholdMask(Mat highMask) {
+		Mat out = highMask > 1800;
+		dilate(out, out, getStructuringElement( MORPH_RECT, Size(17, 17)));
 		return out;
 	}
 
-	Mat createCombinedMask(Mat color, Mat depth, Mat high, Mat erode) {
-		Mat combined = color.clone();
+	Mat createCombinedMask(Mat color, Mat low, Mat high) {
+		Mat combined = high + low;
+		combined &= color;
 
-		#pragma omp parallel for
-		for(int r = 0; r < combined.rows; ++r) {
-			uint8_t *combinedPtr = combined.ptr<uint8_t>(r);
-			const uint8_t *colorPtr = color.ptr<uint8_t>(r);
-			const uint8_t *erodePtr = erode.ptr<uint8_t>(r);
-			const uint8_t *highPtr = high.ptr<uint8_t>(r);
-			const uint16_t *depthPtr = depth.ptr<uint16_t>(r);
-			for(size_t c = 0; c < (size_t)combined.cols; ++c, ++combinedPtr, ++colorPtr, ++depthPtr, ++highPtr, ++erodePtr) {
-				if(*erodePtr > 0) {
-					if(*depthPtr > 0)
-						*combinedPtr = 128;
-					else
-						*combinedPtr = 0;
-				}
- 			}
-		}
+		dilate(combined, combined, getStructuringElement( MORPH_ELLIPSE, Size(2, 2)));
+		erode(combined, combined, getStructuringElement( MORPH_ELLIPSE, Size(2, 2)));
 
 		return combined;
-	}
-
-	void createHighCloud() {
-
-		for (int i=0; i<m_highCloud->height; ++i) {
-			for (int j=0; j<m_highCloud->width; ++j) {
-				if (m_combinedMask.at<uint8_t>(i,j) != 255) {
-					m_highCloud->at(m_highCloud->width*i+j).x =  BAD_POINT;
-					m_highCloud->at(m_highCloud->width*i+j).y =  BAD_POINT;
-					m_highCloud->at(m_highCloud->width*i+j).z =  BAD_POINT;
-					m_highCloud->at(m_highCloud->width*i+j).r = 0;
-					m_highCloud->at(m_highCloud->width*i+j).g = 0;
-					m_highCloud->at(m_highCloud->width*i+j).b = 0;
-				}
-			}
-		}
-	}
-
-	void createCloud() {
-		for (int i=0; i<m_cloud->height; ++i) {
-			for (int j=0; j<m_cloud->width; ++j) {
-				if (m_combinedMask.at<uint8_t>(i,j) == 0 || m_combinedMask.at<uint16_t>(i,j) == 128) {
-					m_cloud->at(m_cloud->width*i+j).x =  BAD_POINT;
-					m_cloud->at(m_cloud->width*i+j).y =  BAD_POINT;
-					m_cloud->at(m_cloud->width*i+j).z =  BAD_POINT;
-					m_cloud->at(m_cloud->width*i+j).r = 0;
-					m_cloud->at(m_cloud->width*i+j).g = 0;
-					m_cloud->at(m_cloud->width*i+j).b = 0;
-				}
-			}
-		}
 	}
 
 	//filter depth based on background depth
@@ -359,6 +325,22 @@ public:
 		  }
 		}
 		return out;
+	}
+
+	void displayCloud(ColorCloudPtr in) {
+		if(m_visualizer_init) {
+			m_visualizer->updatePointCloud(in, CLOUD_NAME);
+		} else {
+			m_visualizer->setBackgroundColor (0, 0, 0);
+			m_visualizer->initCameraParameters ();
+			m_visualizer->setCameraPosition(0, 0, 0, 0, -1, 0, 0.8575);
+			m_visualizer->addPointCloud<ColorPoint> (in, CLOUD_NAME);
+			m_visualizer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, CLOUD_NAME);
+			m_visualizer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_OPACITY, 1, CLOUD_NAME);
+
+			m_visualizer_init = true;
+		}
+		m_visualizer->spinOnce();
 	}
 
 	PreprocessorSegmentationNode(ros::NodeHandle& nh) :
