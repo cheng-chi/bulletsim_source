@@ -1,3 +1,7 @@
 *.bag
 *.bdr
 *.tf
+*~
+.project
+.pydevproject
+*.pyc
