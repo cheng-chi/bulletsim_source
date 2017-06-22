@@ -51,6 +51,7 @@ struct LocalConfig: Config {
 	static float clusterTolerance;
 	static int clusterMinSize;
 	static float downsampleAmount;
+	static bool displayBackgroundDepth;
 
 
 	LocalConfig() :
@@ -67,6 +68,7 @@ struct LocalConfig: Config {
 			params.push_back(new Parameter<bool> ("displayHighMask", &displayHighMask, "display the high mask used to filter the point cloud"));
 			params.push_back(new Parameter<bool> ("displayThresholdMask", &displayThresholdMask, "display the threshold mask used to filter the point cloud"));
 			params.push_back(new Parameter<bool> ("displayCombinedMask", &displayCombinedMask, "display the combined mask used to filter the point cloud"));
+			params.push_back(new Parameter<bool> ("displayBackgroundDepth", &displayBackgroundDepth, "display the background depth used to filter the point cloud"));
 			params.push_back(new Parameter<int> ("averageImages", &averageImages, "number of depth maps to average for the background depth image"));
 			params.push_back(new Parameter<int> ("depthThreshold", &depthThreshold, "how much closer than the background image something must be to be segmented"));
 			params.push_back(new Parameter<int> ("kSamples", &kSamples, "K samples for pcl noise removal"));
@@ -91,6 +93,7 @@ bool LocalConfig::displayLowMask = false;
 bool LocalConfig::displayHighMask = false;
 bool LocalConfig::displayThresholdMask = false;
 bool LocalConfig::displayCombinedMask = false;
+bool LocalConfig::displayBackgroundDepth = false;
 int LocalConfig::averageImages = 20;
 int LocalConfig::depthThreshold = 100;
 int LocalConfig::kSamples = 10;
@@ -100,6 +103,7 @@ int LocalConfig::n = 10;
 float LocalConfig::downsampleAmount = 0.006;
 float LocalConfig::clusterTolerance = 0.03;
 int LocalConfig::clusterMinSize = 100;
+
 
 const std::string CLOUD_NAME = "rendered";
 const int minx=175, maxx=255, miny=100, maxy=255, minz=0, maxz=255;
@@ -148,6 +152,7 @@ public:
 			if(LocalConfig::displayLowMask) imshow("High Mask", m_lowMask);
 			if(LocalConfig::displayThresholdMask) imshow("Threshold Mask", m_thresholdMask);
 			if(LocalConfig::displayCombinedMask) imshow("Combined Mask", m_combinedMask);
+			if(LocalConfig::displayBackgroundDepth) imshow("Background Depth", m_backgroundDepth);
 
 
 			for (int i=0; i<m_cloud->height; ++i) {
@@ -226,33 +231,14 @@ public:
 			++m_imagesGathered;
 		} else {
 			//calculate average background depth from gathered samples
-			Mat average(m_backgroundImages[0].size(), CV_16UC1);
-			vector<double> pixels(m_backgroundImages[0].rows * m_backgroundImages[0].cols);
-
-			//add together all images and store the result in the pixels vector
-			#pragma omp parallel for
-			for (int i = 0; i < m_backgroundImages.size(); ++i) {
-				int pixel = 0;
-				for (int r = 0; r < m_backgroundImages[i].rows; ++r) {
-					const uint16_t *itD = m_backgroundImages[i].ptr<uint16_t>(r);
-					uint16_t *itA = average.ptr<uint16_t>(r);
-					for (size_t c = 0; c < (size_t) m_backgroundImages[i].cols; ++c, ++itD, ++pixel) {
-						pixels[pixel] += *itD;
-					}
-				}
+			Mat average;
+			m_backgroundImages[0].convertTo(average, CV_32SC1);
+			for(int i = 1; i < m_backgroundImages.size(); ++i) {
+				Mat temp;
+				m_backgroundImages[i].convertTo(temp, CV_32SC1);
+				average += temp;
 			}
-
-			//divide the elements in the pixels vector by the number of images averaged
-			int pixel = 0;
-			#pragma omp parallel for
-			for (int r = 0; r < average.rows; ++r) {
-				uint16_t *itA = average.ptr<uint16_t>(r);
-				for (size_t c = 0; c < (size_t) average.cols; ++c, ++itA, ++pixel) {
-					*itA = pixels[pixel]/LocalConfig::averageImages;
-				}
-			}
-
-			average.copyTo(m_backgroundDepth);
+			average.convertTo(m_backgroundDepth, CV_16UC1, 1.0/float(LocalConfig::averageImages));
 
 			//calculate the far plane cutoff
 			if(LocalConfig::enableFarClip) {
