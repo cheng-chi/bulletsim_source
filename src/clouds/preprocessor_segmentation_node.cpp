@@ -56,7 +56,7 @@ struct LocalConfig: Config {
 
 	LocalConfig() :
 		Config() {
-			params.push_back(new Parameter<string> ("inputTopic", &outputTopic, "what topic the node should read from"));
+			params.push_back(new Parameter<string> ("inputTopic", &inputTopic, "what topic the node should read from"));
 			params.push_back(new Parameter<string> ("outputTopic", &outputTopic, "what topic the node should publish to"));
 			params.push_back(new Parameter<string> ("nodeNS", &nodeNS, "node namespace"));
 			params.push_back(new Parameter<bool> ("enableFarClip", &enableFarClip, "enable far plane clipping (kinect must be facing straight down to work)"));
