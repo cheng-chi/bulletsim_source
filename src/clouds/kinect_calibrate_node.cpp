@@ -13,6 +13,8 @@
 #include <pcl/ros/conversions.h>
 #include <pcl/registration/transformation_estimation_svd.h>
 #include <pcl/registration/icp.h>
+#include <pcl/filters/median_filter.h>
+#include <pcl/visualization/cloud_viewer.h>
 #include <cv_bridge/cv_bridge.h>
 #include "clouds/utils_pcl.h"
 #include "clouds/cloud_ops.h"
@@ -21,6 +23,7 @@
 #include "utils/config.h"
 #include "utils/conversions.h"
 #include "utils_ros.h"
+#include "utils_cv.h"
 
 ////////////////////////
 #include <pcl_conversions/pcl_conversions.h>
@@ -35,6 +38,7 @@ struct LocalConfig : Config {
 	static int chessBoardWidth;
 	static int chessBoardHeight;
 	static bool saveTransform;
+	static bool filterCloud;
 
 	LocalConfig() : Config() {
 		params.push_back(new Parameter<std::vector<std::string> >("cameraTopics", &cameraTopics, "camera base topics. there should be at least two."));
@@ -43,15 +47,17 @@ struct LocalConfig : Config {
 		params.push_back(new Parameter<int>("chessBoardWidth", &chessBoardWidth, "number of inner corners along the width of the chess board (if calibrationType != 0)"));
 		params.push_back(new Parameter<int>("chessBoardHeight", &chessBoardHeight, "number of inner corners along the height of the chess board (if calibrationType != 0)"));
 		params.push_back(new Parameter<bool>("saveTransform", &saveTransform, "save chessboard <-> camera transforms to file"));
+		params.push_back(new Parameter<bool>("filterCloud", &filterCloud, "filter cloud before creating transform, should improve results"));
 	}
 };
 
-std::vector<std::string> LocalConfig::cameraTopics = boost::assign::list_of("/drop/kinect1/points");//("/kinect2/depth_registered/points");
+std::vector<std::string> LocalConfig::cameraTopics = boost::assign::list_of("/kinect1/sd/points")("/kinect2/depth_registered/points");
 int LocalConfig::calibrationType = 0;
 float LocalConfig::squareSize = 0.0245;
 int LocalConfig::chessBoardWidth = 6;
 int LocalConfig::chessBoardHeight = 9;
 bool LocalConfig::saveTransform = true;
+bool LocalConfig::filterCloud = false;
 
 
 vector<Matrix4f> transforms;
@@ -59,6 +65,8 @@ std::vector<std::string> frameName;
 
 boost::shared_ptr<tf::TransformBroadcaster> broadcaster;
 boost::shared_ptr<tf::TransformListener> listener;
+
+const float BAD_POINT = numeric_limits<float>::quiet_NaN();
 
 int main(int argc, char* argv[]) {
 	Parser parser;
@@ -70,7 +78,6 @@ int main(int argc, char* argv[]) {
 
 	ros::init(argc, argv,"kinectCalibrate");
 	ros::NodeHandle nh;
-
 
 	switch (LocalConfig::calibrationType) {
 	// Load from file calibration
@@ -94,6 +101,36 @@ int main(int argc, char* argv[]) {
 			frameName.push_back(msg_in->header.frame_id);
 			ColorCloudPtr cloud_in(new ColorCloud());
 			pcl::fromROSMsg(*msg_in, *cloud_in);
+
+			if(LocalConfig::filterCloud) {
+				ROS_INFO("Filtering cloud, might take a while");
+				cv::Mat color = toCVMatImage(cloud_in);
+				cv::Mat mask = colorSpaceMask(color, 30, 120, 30, 120, 30, 120, CV_BGR2RGB);
+				mask |= colorSpaceMask(color, 200, 255, 200, 255, 200, 255, CV_BGR2RGB);
+
+				cv::dilate(mask, mask, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2, 2)));
+				cv::erode(mask, mask, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(15, 15)));
+				cv::dilate(mask, mask, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(60, 60)));
+
+				for (int k=0; k<cloud_in->height; ++k) {
+					for (int j=0; j<cloud_in->width; ++j) {
+						if (mask.at<uint8_t>(k,j) == 0) {
+							cloud_in->at(cloud_in->width*k+j).x = BAD_POINT;
+							cloud_in->at(cloud_in->width*k+j).y = BAD_POINT;
+							cloud_in->at(cloud_in->width*k+j).z = BAD_POINT;
+							cloud_in->at(cloud_in->width*k+j).r = 0;
+							cloud_in->at(cloud_in->width*k+j).g = 0;
+							cloud_in->at(cloud_in->width*k+j).b = 0;
+						}
+					}
+				}
+
+				pcl::MedianFilter<ColorPoint> med;
+				med.setInputCloud(cloud_in);
+				med.setWindowSize(50);
+				med.setMaxAllowedMovement(0.5);
+				med.applyFilter(*cloud_in);
+			}
 
 			int found_corners = getChessBoardPose(cloud_in, LocalConfig::chessBoardWidth, LocalConfig::chessBoardHeight, LocalConfig::squareSize, transforms[i]);
 			if (found_corners) {
@@ -119,10 +156,15 @@ int main(int argc, char* argv[]) {
 	ros::Rate rate(30);
 	ROS_INFO("Publish /ground transforms to topic /tf");
 	while (nh.ok()){
-		for (int i=0; i<nCameras; i++) {
-			broadcastKinectTransform(toBulletTransform((Affine3f) transforms[i]), frameName[i], "/ground", *broadcaster, *listener);
+		try {
+			for (int i=0; i<nCameras; i++) {
+				broadcastKinectTransform(toBulletTransform((Affine3f) transforms[i]), frameName[i], "/ground", *broadcaster, *listener);
+			}
+			rate.sleep();
+		} catch (tf::TransformException ex) {
+			ROS_WARN("transforms not loaded yet!  Sleeping for 1 second");
+			ros::Duration(1.0).sleep();
 		}
-		rate.sleep();
 	}
 
 }
