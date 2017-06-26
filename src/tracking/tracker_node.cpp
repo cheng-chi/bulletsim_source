@@ -197,12 +197,13 @@ int main(int argc, char* argv[]) {
 		for (int i=0; i<nCameras; i++)
 			visInterface->visibilities[i]->updateInput(depth_images[i]);
 		pending = false;
+
 		while (ros::ok() && !pending) {
+
 			//Do iteration
 			alg->updateFeatures();
 			alg->expectationStep();
 			alg->maximizationStep(applyEvidence);
-			//alg->CPDupdate();
 
 			trackingVisualizer->update();
 

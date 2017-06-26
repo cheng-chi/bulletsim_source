@@ -117,8 +117,12 @@ Eigen::MatrixXf PhysicsTracker::CPDupdate() {
 	Eigen::MatrixXd simCld = m_estPts.cast <double> ();
 
 	cpd::Nonrigid Nonrigid;
-	Nonrigid.tolerance(1e-4);
+	Nonrigid.normalize(true);
 	Nonrigid.beta(2.0);
+	Nonrigid.lambda(3.0);
+	Nonrigid.tolerance(1e-4);
+	Nonrigid.linked(true);
+	Nonrigid.outliers(0.1);
 //	std::unique_ptr<cpd::GaussTransformFgt> fgt(new cpd::GaussTransformFgt());
 //	fgt->method(cpd::FgtMethod::DirectTree);
 //	Nonrigid.gauss_transform(std::move(fgt));

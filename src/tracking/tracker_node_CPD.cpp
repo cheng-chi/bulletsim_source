@@ -201,6 +201,7 @@ int main(int argc, char* argv[]) {
 		Eigen::MatrixXf estPos_next = alg->CPDupdate();
 
 		pending = false;
+
 		while (ros::ok() && !pending) {
 
 			//Do iteration
