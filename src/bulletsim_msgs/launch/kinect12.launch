@@ -1,0 +1,49 @@
+<launch>
+
+	<!--
+		instructions
+		this launch file is for one Kinect 1 and one Kinect 2 use, includes connect with Kinects, calibrate and change topic name(drop points) and launch preprocessor.
+		after launch this file, preprocessor will be running, following steps are running initialization_service and tracker_node
+		calibrationType=1 for calibrate with the chessboard, 0 for process with the system. please set it to be 1 everytime you move the camera or the table
+	-->
+
+
+  <param name="use_sim_time" value="false" />
+  <arg name="camera" default="kinect"/>
+  <arg name="calibrationType" default="0"/>
+ 
+
+
+  <!--
+  <include file="$(find freenect_launch)/launch/freenect.launch">
+	<arg name="camera" value="kinect1" />
+	<arg name="depth_registration" value="true" />
+  </include>
+  -->
+ 
+
+  <include file="$(find kinect2_bridge)/launch/kinect2_bridge.launch">
+	<arg name="base_name" value="kinect2" />
+	<arg name="max_depth" value="2" />
+        <arg name="publish_tf" value="true" />
+	<arg name="fps_limit" value="10" />
+  </include>
+
+
+
+  <node name="drop" pkg="topic_tools" type="drop" args="/kinect1/depth_registered/points 2 3 /drop/kinect1/points"/>
+  
+  <node name="kinectCalibrate" pkg="binary_symlinks" type="kinect_calibrate_node" args="--calibrationType=$(arg calibrationType)"/>
+
+  <node name="preprocessor_segmentation_node2" pkg="binary_symlinks" type="preprocessor_segmentation_node" output="screen"  args="--inputTopic=/kinect2/sd/points --nodeNS=/preprocessor/$(arg camera)2 --outputTopic=/preprocessor/$(arg camera)2/points --displayCombinedMask=1"/>
+
+  <node name="preprocessor_segmentation_node1" pkg="binary_symlinks" type="preprocessor_segmentation_node" output="screen"  args="--inputTopic=/drop/kinect1/points --nodeNS=/preprocessor/$(arg camera)1 --outputTopic=/preprocessor/$(arg camera)1/points  --displayCombinedMask=1" /> 
+
+
+</launch>
+
+
+
+
+
+

@@ -155,3 +155,31 @@ cd $BULLETSIM_SOURCE_DIR
 ```
 ### 5. Import the Release and Debug projects to Eclipse, then compile
 reference: http://www.cnblogs.com/cv-pr/p/4871546.html
+
+### 6. Use Ros launch File and Terminal to process everything you need
+```Bash
+roslaunch bulletsim_msgs kinect2.launch
+```
+There are 3 additional launch files in bulletsim_msgs package, usage explained below.
+
+After launch this file, preprocessor will be running, following steps are running initialization_service and tracker_node_CPD
+
+In order to run python in terminal, add python file path to .bashrc first.
+```Bash
+export PYTHONPATH=$PYTHONPATH:/home/user_name/catkin_ws/src/bulletsim_python/src
+```
+cd to the file you store initialization_service.py, or complete the path to the python file in the terminal, type in and run.
+```Bash
+python ./path_to_the_file/initialization_service.py
+./path_to_build_release_bin_file/tracker_node_CPD
+```
+#### 6.1 kinect1.launch
+For one Kinect V1 use, includes connect with Kinect 1, calibration and downsample the topic (change topic name) and launch preprocessor_color_node. 
+#### 6.2 kinect2.launch
+For one Kinect V2 use, includes connect with Kinect 2, calibrate and downsample the topic (change topic name) and launch preprocessor_color_node. 
+#### 6.3 kinect12.launch
+For one Kinect V1 and one Kinect V2 use, includes connect with Kinects, calibrate and downsample the topic (change topic name) and launch two preprocessor_segmentation_node. 
+Since Kinect V1 is easy to lose connect, so run the code below in another terminal and than use this launch file for Kinect 2 is more efficient.
+```Bash
+roslaunch freenect_launch freenect.launch camera:=kinect1 depth_registration:=true
+```

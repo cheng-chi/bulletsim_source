@@ -1,0 +1,33 @@
+<launch>
+
+	<!--
+		instructions
+		this launch file is for Kinect 2 use, includes connect with Kinect 2, calibrate and change topic name(drop points) and launch preprocessor.
+		after launch this file, preprocessor will be running, following steps are running initialization_service and tracker_node
+		calibrationType=1 for calibrate with the chessboard, 0 for process with the system. please set it to be 1 everytime you move the camera or the table
+	-->
+
+
+	<param name="use_sim_time" value="false" />
+	<arg name="base_name" default="kinect1"/>
+	<arg name="calibrationType" default="0"/>
+	
+
+	
+	<include file="$(find kinect2_bridge)/launch/kinect2_bridge.launch">
+		<arg name="base_name" value="$(arg base_name)" />
+		<arg name="max_depth" value="2" />
+                <arg name="publish_tf" value="true" />
+		<arg name="fps_limit" value="10" />
+	</include>
+	
+	<node name="drop" pkg="topic_tools" type="drop" args="/kinect1/sd/points 0 3 /drop/kinect1/points"/>
+
+	<node name="kinectCalibrate" pkg="binary_symlinks" type="kinect_calibrate_node" args="--calibrationType=$(arg calibrationType)"/>
+	
+	
+	<node name="preprocessor" pkg="binary_symlinks" type="preprocessor_color_node" args="--inputTopic=/drop/kinect1/points --downsample=0.01 --offset=0.078" />
+	
+
+
+</launch>
