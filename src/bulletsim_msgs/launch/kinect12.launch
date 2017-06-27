@@ -35,9 +35,14 @@
   
   <node name="kinectCalibrate" pkg="binary_symlinks" type="kinect_calibrate_node" args="--calibrationType=$(arg calibrationType)"/>
 
+
+  <group unless="$(arg calibrationType)">
+
   <node name="preprocessor_segmentation_node2" pkg="binary_symlinks" type="preprocessor_segmentation_node" output="screen"  args="--inputTopic=/kinect2/sd/points --nodeNS=/preprocessor/$(arg camera)2 --outputTopic=/preprocessor/$(arg camera)2/points --displayCombinedMask=1"/>
 
-  <node name="preprocessor_segmentation_node1" pkg="binary_symlinks" type="preprocessor_segmentation_node" output="screen"  args="--inputTopic=/drop/kinect1/points --nodeNS=/preprocessor/$(arg camera)1 --outputTopic=/preprocessor/$(arg camera)1/points  --displayCombinedMask=1" /> 
+  <node name="preprocessor_segmentation_node1" pkg="binary_symlinks" type="preprocessor_segmentation_node" output="screen"  args="--inputTopic=/drop/kinect1/points --nodeNS=/preprocessor/$(arg camera)1 --outputTopic=/preprocessor/$(arg camera)1/points  --displayCombinedMask=1" />
+  </group>
+   
 
 
 </launch>

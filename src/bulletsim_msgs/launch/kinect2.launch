@@ -11,6 +11,8 @@
 	<param name="use_sim_time" value="false" />
 	<arg name="base_name" default="kinect1"/>
 	<arg name="calibrationType" default="0"/>
+	<arg name="downsample" default="0.01"/>
+	<arg name="offset" default="0.0078"/>
 	
 
 	
@@ -23,10 +25,13 @@
 	
 	<node name="drop" pkg="topic_tools" type="drop" args="/kinect1/sd/points 0 3 /drop/kinect1/points"/>
 
+
 	<node name="kinectCalibrate" pkg="binary_symlinks" type="kinect_calibrate_node" args="--calibrationType=$(arg calibrationType)"/>
 	
-	
-	<node name="preprocessor" pkg="binary_symlinks" type="preprocessor_color_node" args="--inputTopic=/drop/kinect1/points --downsample=0.01 --offset=0.078" />
+
+	<group unless="$(arg calibrationType)">
+		<node name="preprocessor" pkg="binary_symlinks" type="preprocessor_color_node" args="--inputTopic=/drop/kinect1/points --downsample=$(arg downsample) --offset=$(arg offset)" />
+	</group>
 	
 
 
