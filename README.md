@@ -155,3 +155,22 @@ cd $BULLETSIM_SOURCE_DIR
 ```
 ### 5. Import the Release and Debug projects to Eclipse, then compile
 reference: http://www.cnblogs.com/cv-pr/p/4871546.html
+
+
+## III. Test Tracking
+### 1. Using recorded data
+Download bagfile, put them into ~/DeformableTracking/bulletsim_source/data/bagfiles  
+```Bash
+roscore
+```
+open eclipse, run initialization_service.py
+in a new terminal
+```Bash
+cd ~/DeformableTracking/bulletsim_build/release/bin
+./tracker_node
+```
+in a new terminal
+```Bash
+cd ~/DeformableTracking/bulletsim_source/data/bagfiles
+rosbag play testrope.bag
+```
