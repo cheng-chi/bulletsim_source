@@ -24,7 +24,7 @@ int TrackingConfig::normalizeIter = 2;
 float TrackingConfig::kp_rope = 1;
 float TrackingConfig::kd_rope = 0.3;
 float TrackingConfig::kp_cloth = 1500;
-float TrackingConfig::kd_cloth = 15;
+float TrackingConfig::kd_cloth = 30;
 float TrackingConfig::kp_box = 15;
 float TrackingConfig::kd_box = 0.2;
 

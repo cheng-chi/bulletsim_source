@@ -10,9 +10,9 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <geometry_msgs/Point32.h>
 
-static const float cx = 320-.5;
-static const float cy = 240-.5;
-static const float f = 525;
+static const float cx = 256-.5;
+static const float cy = 212-.5;
+static const float f = 1052.0/1080*424 - 27;
 
 typedef Eigen::Matrix<bool,Eigen::Dynamic,1> VectorXb;
 typedef Eigen::Matrix<uint8_t,Eigen::Dynamic,Eigen::Dynamic> MatrixXu;
@@ -20,6 +20,7 @@ typedef Eigen::Matrix<uint8_t,Eigen::Dynamic,Eigen::Dynamic> MatrixXu;
 ColorCloudPtr readPCD(const std::string& pcdfile);
 
 Eigen::MatrixXi xyz2uv(const Eigen::MatrixXf& xyz);
+
 inline cv::Point2f xyz2uv(const btVector3& point) {
   return cv::Point2f(f*point.x()/point.z() + cx, f*point.y()/point.z() + cy);
 }

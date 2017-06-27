@@ -93,7 +93,7 @@ if __name__ == "__main__":
     else:
         rospy.init_node('rope_initialization_node',disable_signals=True)
         s = rospy.Service('/initialization', bs.Initialization, handle_initialization_request)
-        print "Ready to initialize ropes."
-        #poly_pub = rospy.Publisher("/initialization/towel_corners_for_viz", gm.PolygonStamped)
+        print "Ready to initialize."
+        poly_pub = rospy.Publisher("/initialization/towel_corners_for_viz", gm.PolygonStamped, queue_size = 10)
         #rospy.spin()    
         time.sleep(999999)
