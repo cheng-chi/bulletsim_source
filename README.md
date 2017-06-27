@@ -157,6 +157,54 @@ cd $BULLETSIM_SOURCE_DIR
 reference: http://www.cnblogs.com/cv-pr/p/4871546.html
 
 
+### 6. Use Ros launch File and Terminal to process everything you need
+Before using launch file, do the following step to make a link between every binary in the build directory and a new package in ros named binary_symlinks
+```Bash
+roscd
+roscreate-pkg binary_symlinks
+cd binary_symlinks
+mkdir bin
+cd bin
+for node in $BULLETSIM_BUILD_DIR/release/bin/* ; do ln -s $node ; done
+```
+After that, you are almost set to launch everything without Eclipse. The command line you need to run is: 
+```Bash
+roslaunch bulletsim_msgs kinect2.launch calibrationType:=0
+```
+Here, calibrationType means whether you need to calibrate the kinect or you have already calibrated it.
+Everytime you move the Kinect, set calibrationType to 1, put a chessboard on the table and launch the file for once and then set it back to 0 for the test.
+
+The way parameter can be set is [arg_name:=value]
+
+Since Kinect 1 is easy to lose connect, for kinect1.launch and kinect12.launch, a quicker way is open another terminal and connect the kinect v1 seperately. If so, remember to comment the code in the launch file. The code to connect Kinect V1 is:
+```Bash
+roslaunch freenect_launch freenect.launch camera:=kinect1 depth_registration:=true
+```
+
+There are 3 additional launch files in bulletsim_msgs package, usage explained below.
+
+After launch this file, preprocessor will be running, following steps are running initialization_service and tracker_node_CPD
+
+In order to run python in terminal, add python file path to .bashrc first.
+```Bash
+export PYTHONPATH=$PYTHONPATH:/home/user_name/catkin_ws/src/bulletsim_python/src
+```
+cd to the file you store initialization_service.py, or complete the path to the python file in the terminal, type in and run.
+```Bash
+python ./path_to_the_file/initialization_service.py
+./path_to_build_release_bin_file/tracker_node_CPD
+```
+#### 6.1 kinect1.launch
+For one Kinect V1 use, includes connect with Kinect 1, calibration and downsample the topic (change topic name) and launch preprocessor_color_node. 
+#### 6.2 kinect2.launch
+For one Kinect V2 use, includes connect with Kinect 2, calibrate and downsample the topic (change topic name) and launch preprocessor_color_node. 
+#### 6.3 kinect12.launch
+For one Kinect V1 and one Kinect V2 use, includes connect with Kinects, calibrate and downsample the topic (change topic name) and launch two preprocessor_segmentation_node. 
+If you plan to use two kinects, an inputTopic config is needed to change, which is on the config_tracking.cpp, add the second kinect name, such as /kinect2 after
+```Bash
+std::vector<std::string> TrackingConfig::cameraTopics = boost::assign::list_of("/kinect1");
+```
+
 ## III. Test Tracking
 ### 1. Using recorded data
 Download bagfile, put them into ~/DeformableTracking/bulletsim_source/data/bagfiles  

@@ -1,0 +1,38 @@
+<launch>
+	
+
+	<!--
+		this launch file is for Kinect 1 use, includes connect with Kinect 1, calibrate and change topic name(drop points) and launch preprocessor.
+		after launch this file, preprocessor will be running, following steps are running initialization_service and tracker_node
+		calibrationType=1 for calibrate with the chessboard, 0 for process with the system, 2 for bad calibration, don't use 2 here. please set it to be 1 everytime you move the camera or the table
+	-->
+
+
+	<param name="use_sim_time" value="false" />
+	<arg name="kp_rope" default="1"/>
+	<arg name="kd_rope" default="0.3" />
+	<arg name="camera" default="kinect1"/>
+	<arg name="calibrationType" default="0"/>
+	<arg name="downsample" default="0.01"/>
+	<arg name="offset" default="0.0075"/>
+	
+
+	
+	<include file="$(find freenect_launch)/launch/freenect.launch">
+		<arg name="camera" value="$(arg camera)" />
+		<arg name="depth_registration" value="true" />
+	</include>
+	
+	
+	<node name="drop" pkg="topic_tools" type="drop" args="/kinect1/depth_registered/points 2 3 /drop/kinect1/points"/>
+
+	<node name="kinectCalibrate" pkg="binary_symlinks" type="kinect_calibrate_node" args="--calibrationType=$(arg calibrationType)"/>
+	
+	<group unless="$(arg calibrationType)">
+		<node name="preprocessor" pkg="binary_symlinks" type="preprocessor_color_node" args="--inputTopic=/drop/kinect1/points --downsample=$(arg downsample) --offset=$(arg offset)" />
+	</group>
+
+	
+
+
+</launch>
