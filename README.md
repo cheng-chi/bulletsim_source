@@ -156,6 +156,7 @@ cd $BULLETSIM_SOURCE_DIR
 ### 5. Import the Release and Debug projects to Eclipse, then compile
 reference: http://www.cnblogs.com/cv-pr/p/4871546.html
 
+
 ### 6. Use Ros launch File and Terminal to process everything you need
 Before using launch file, do the following step to make a link between every binary in the build directory and a new package in ros named binary_symlinks
 ```Bash
@@ -202,4 +203,22 @@ For one Kinect V1 and one Kinect V2 use, includes connect with Kinects, calibrat
 If you plan to use two kinects, an inputTopic config is needed to change, which is on the config_tracking.cpp, add the second kinect name, such as /kinect2 after
 ```Bash
 std::vector<std::string> TrackingConfig::cameraTopics = boost::assign::list_of("/kinect1");
+```
+
+## III. Test Tracking
+### 1. Using recorded data
+Download bagfile, put them into ~/DeformableTracking/bulletsim_source/data/bagfiles  
+```Bash
+roscore
+```
+open eclipse, run initialization_service.py
+in a new terminal
+```Bash
+cd ~/DeformableTracking/bulletsim_build/release/bin
+./tracker_node
+```
+in a new terminal
+```Bash
+cd ~/DeformableTracking/bulletsim_source/data/bagfiles
+rosbag play testrope.bag
 ```
