@@ -126,10 +126,12 @@ Check whether the customized messages and srvices ("bulletsim_msg/...") are reco
 rosmsg list 
 rossrv list
 ```
-#### 2.3. Add PYTHONPATH
-To run initialization_service.py in terminal, add python path to .bashrc.
+#### 2.3. Add path to system PYTHONPATH
+To run initialization_service.py (in bulletsim_python) in terminal, add python path to .bashrc.
 ```Bash
-export PYTHONPATH=$PYTHONPATH:/home/user_name/catkin_ws/src/bulletsim_python/src
+echo 'export BULLETSIM_PYTHON_DIR=~/catkin_ws/src/bulletsim_python/src' >> ~/.bashrc
+echo 'export PYTHONPATH=$PYTHONPATH:$BULLETSIM_PYTHON_DIR' >> ~/.bashrc
+source ~/.bashrc
 ```
 
 ### 3. Compile "fgt" and "cpd" packages for rope tracking
@@ -179,41 +181,45 @@ roslaunch bulletsim_msgs kinect2.launch calibrationType:=0
 Here, calibrationType means whether you need to calibrate the kinect or you have already calibrated it.
 Everytime you move the Kinect, set calibrationType to 1, put a chessboard on the table and launch the file for once and then set it back to 0 for the test.
 
-Run initialization_service.py and tracker_node_CPD
+Run initialization_service.py
 ```Bash
-python ./path_to_the_file/initialization_service.py
-./path_to_build_release_bin_file/tracker_node_CPD
+python $BULLETSIM_PYTHON_DIR/tracking_initialization/scripts/initialization_service.py
 ```
-#### 6.1 kinect1.launch
+Run tracker_node_CPD
+```Bash
+$BULLETSIM_BUILD_DIR/release/bin/tracker_node_CPD
+```
+#### (a) kinect1.launch
 For one Kinect V1 use, includes connect with Kinect 1, calibration and downsample the topic (change topic name) and launch preprocessor_color_node. 
-#### 6.2 kinect2.launch
+#### (b) kinect2.launch
 For one Kinect V2 use, includes connect with Kinect 2, calibrate and downsample the topic (change topic name) and launch preprocessor_color_node. 
-#### 6.3 kinect12.launch
+#### (c) kinect12.launch
 For one Kinect V1 and one Kinect V2 use, includes connect with Kinects, calibrate and downsample the topic (change topic name) and launch two preprocessor_segmentation_node. 
 If you plan to use two kinects, an inputTopic config is needed to change, which is on the config_tracking.cpp, add the second kinect name, such as /kinect2 after
 ```Bash
 std::vector<std::string> TrackingConfig::cameraTopics = boost::assign::list_of("/kinect1");
 ```
 
+### 2. Use Kinect for online experiment (step by step without using roslaunch)
 https://docs.google.com/a/berkeley.edu/document/d/1rV39njt_-qcb-sSsAd2HKh0qMhbHoNoIG9QPp373nAg/edit?usp=sharing
 
 
-### 2. Use recorded data for offline test
+### 3. Use recorded data for offline test
 Download bagfile from our shared Google Drive folder, put them into ~/DeformableTracking/bulletsim_source/data/bagfiles/
 Start ROS kernel
 ```Bash
 roscore
 ```
 Run initialization_service.py
-
+```Bash
+python $BULLETSIM_PYTHON_DIR/tracking_initialization/scripts/initialization_service.py
+```
 Run tracker_node_CPD
 ```Bash
-cd ~/DeformableTracking/bulletsim_build/release/bin
-./tracker_node_CPD
+$BULLETSIM_BUILD_DIR/release/bin/tracker_node_CPD
 ```
 Play the recorded point cloud
 ```Bash
-cd ~/DeformableTracking/bulletsim_source/data/bagfiles
-rosbag play testrope.bag
+rosbag play $BULLETSIM_SOURCE_DIR/data/bagfiles/testrope.bag
 ```
-If everything is installed correctly, a window will pop up and shows a virtual object that follows the motion of point cloud.
+If everything is installed correctly, when the rosbag is palyed, a window will immediately pop up and shows a virtual object that follows the motion of point cloud.
