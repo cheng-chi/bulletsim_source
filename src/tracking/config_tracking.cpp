@@ -7,6 +7,7 @@ std::string TrackingConfig::depthTopic  = "/kinect1/depth_registered/image_rect"
 std::string TrackingConfig::rgbTopic = "/kinect1/rgb/image_rect_color";
 std::string TrackingConfig::fullCloudTopic = "/kinect1/depth_registered/points";
 
+
 std::vector<std::string> TrackingConfig::cameraTopics = boost::assign::list_of("/kinect1");
 //// Define the dimension for registration: xyz + color or just xyz
 std::vector<int> TrackingConfig::featureTypes = boost::assign::list_of(FeatureExtractor::FT_XYZ);
@@ -27,6 +28,7 @@ float TrackingConfig::kp_cloth = 1500;
 float TrackingConfig::kd_cloth = 30;
 float TrackingConfig::kp_box = 15;
 float TrackingConfig::kd_box = 0.2;
+int TrackingConfig::viewDirection = 0;
 
 float TrackingConfig::tracked_node_distance = 0.05;
 float TrackingConfig::node_distance = 0.01; // 1 cm between nodes
