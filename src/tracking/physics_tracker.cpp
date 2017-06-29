@@ -118,11 +118,14 @@ Eigen::MatrixXf PhysicsTracker::CPDupdate() {
 
 	cpd::Nonrigid Nonrigid;
 	Nonrigid.normalize(true);
-	Nonrigid.beta(2.0);
-	Nonrigid.lambda(3.0);
-	Nonrigid.tolerance(1e-4);
+	Nonrigid.beta(2.0);//original 2.0
+	Nonrigid.lambda(3.0);//original 3.0
+	Nonrigid.tolerance(1e-4);//1e-4 original
 	Nonrigid.linked(true);
 	Nonrigid.outliers(0.1);
+	Nonrigid.max_iterations(800);
+	Nonrigid.correspondence(false);
+
 //	std::unique_ptr<cpd::GaussTransformFgt> fgt(new cpd::GaussTransformFgt());
 //	fgt->method(cpd::FgtMethod::DirectTree);
 //	Nonrigid.gauss_transform(std::move(fgt));

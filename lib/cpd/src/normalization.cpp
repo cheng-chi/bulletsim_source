@@ -20,9 +20,9 @@
 namespace cpd {
 
 Normalization::Normalization(const Matrix& f, const Matrix& m, bool linked)
-  : fixed_mean(f.colwise().mean())
-  , fixed(f - fixed_mean.transpose().replicate(f.rows(), 1))
-  , fixed_scale(std::sqrt(fixed.array().pow(2).sum() / fixed.rows()))
+  : fixed_mean(f.colwise().mean())		// The average of the fixed points, that was subtracted from those data.	// f col every mean value
+  , fixed(f - fixed_mean.transpose().replicate(f.rows(), 1))		// The fixed points matrix.
+  , fixed_scale(std::sqrt(fixed.array().pow(2).sum() / fixed.rows()))		// The scaling factor for the fixed points.
   , moving_mean(m.colwise().mean())
   , moving(m - moving_mean.transpose().replicate(m.rows(), 1))
   , moving_scale(std::sqrt(moving.array().pow(2).sum() / moving.rows())) {

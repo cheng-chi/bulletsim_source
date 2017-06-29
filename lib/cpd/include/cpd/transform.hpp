@@ -153,7 +153,7 @@ public:
         while (iter < m_max_iterations && ntol > m_tolerance &&
                result.sigma2 > 10 * std::numeric_limits<double>::epsilon()) {
             Probabilities probabilities = m_gauss_transform->compute(
-                fixed, result.points, result.sigma2, m_outliers);
+                fixed, result.points, result.sigma2, m_outliers);		////////////////////////////////
             this->modify_probabilities(probabilities);
 
             ntol = std::abs((probabilities.l - l) / probabilities.l);
@@ -205,7 +205,7 @@ public:
 
 private:
     bool m_correspondence;
-    std::unique_ptr<GaussTransform> m_gauss_transform;
+    std::unique_ptr<GaussTransform> m_gauss_transform;					//////////////////////////// used to be GaussTransform, shouldn't it be GaussTransformDirect?
     size_t m_max_iterations;
     bool m_normalize;
     double m_outliers;

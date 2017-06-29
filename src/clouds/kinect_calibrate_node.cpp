@@ -51,7 +51,7 @@ struct LocalConfig : Config {
 	}
 };
 
-std::vector<std::string> LocalConfig::cameraTopics = boost::assign::list_of("/drop/kinect1/points");//("/kinect2/depth_registered/points");
+std::vector<std::string> LocalConfig::cameraTopics = boost::assign::list_of("/kinect1/sd/points");//("/kinect2/depth_registered/points");
 int LocalConfig::calibrationType = 0;
 float LocalConfig::squareSize = 0.0245;
 int LocalConfig::chessBoardWidth = 6;
