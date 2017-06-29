@@ -147,9 +147,20 @@ int main(int argc, char* argv[]) {
 		camsync.enable(CamSync::PLAYBACK, TrackingConfig::playback_camera_pos_file);
 	}
 
-	ViewerConfig::cameraHomePosition = transformers[0]->worldFromCamUnscaled.getOrigin() + btVector3(0,0,0);
-	ViewerConfig::cameraHomeCenter = ViewerConfig::cameraHomePosition + transformers[0]->worldFromCamUnscaled.getBasis().getColumn(2);
-	ViewerConfig::cameraHomeUp = -transformers[0]->worldFromCamUnscaled.getBasis().getColumn(1);
+	//ViewerConfig::cameraHomePosition = transformers[0]->worldFromCamUnscaled.getOrigin() + btVector3(0,0,0);
+	//ViewerConfig::cameraHomeCenter = ViewerConfig::cameraHomePosition + transformers[0]->worldFromCamUnscaled.getBasis().getColumn(2);
+	//ViewerConfig::cameraHomeUp = -transformers[0]->worldFromCamUnscaled.getBasis().getColumn(1);
+	ViewerConfig::cameraHomePosition = btVector3(0,0,1);
+    ViewerConfig::cameraHomeCenter = btVector3(0,0,0);
+    ViewerConfig::cameraHomeUp = btVector3(0,0,0);
+    if (TrackingConfig::direction ==90) {// turn 90 degree clockwise
+        ViewerConfig::cameraHomeUp = btVector3(-1,0,0);
+    } else if (TrackingConfig::direction ==180) {
+    	ViewerConfig::cameraHomeUp = btVector3(0,-1,0);
+    } else if (TrackingConfig::direction ==270) {
+    	ViewerConfig::cameraHomeUp = btVector3(1,0,0);
+    }
+
 	scene.startViewer();
 
 	TrackedObject::Ptr trackedObj = callInitServiceAndCreateObject(filteredCloud, rgb_images[0], mask_images[0], transformers[0]);
@@ -197,12 +208,13 @@ int main(int argc, char* argv[]) {
 		for (int i=0; i<nCameras; i++)
 			visInterface->visibilities[i]->updateInput(depth_images[i]);
 		pending = false;
+
 		while (ros::ok() && !pending) {
+
 			//Do iteration
 			alg->updateFeatures();
 			alg->expectationStep();
 			alg->maximizationStep(applyEvidence);
-			//alg->CPDupdate();
 
 			trackingVisualizer->update();
 
