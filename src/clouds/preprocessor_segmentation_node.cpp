@@ -1,3 +1,4 @@
+#include <boost/assign/list_of.hpp>
 #include <pcl/ros/conversions.h>
 #include <pcl/common/transforms.h>
 #include <pcl/point_cloud.h>
@@ -15,6 +16,7 @@
 
 #include <iostream>
 #include <vector>
+#include <sstream>
 
 #include "ros/ros.h"
 #include "sensor_msgs/PointCloud2.h"
@@ -30,182 +32,246 @@ using namespace std;
 using namespace cv;
 
 struct LocalConfig: Config {
-	static std::string inputTopic;
+	static std::vector<std::string> cameraTopics;
 	static std::string outputTopic;
 	static std::string nodeNS;
-	static bool enableFarClip;
-	static int farClipSampleSize;
-	static bool displayCloud;
-	static bool displayColorMask;
-	static bool displayDepthMask;
-	static bool displayLowMask;
-	static bool displayHighMask;
-	static bool displayThresholdMask;
-	static bool displayCombinedMask;
-	static int averageImages;
-	static int depthThreshold;
+	static bool displayMasks;
 	static int kSamples;
 	static float deviations;
-	static float r;
-	static int n;
 	static float clusterTolerance;
 	static int clusterMinSize;
 	static float downsampleAmount;
-	static bool displayBackgroundDepth;
-
+	static int maskSize;
+	static float lowThreshold;
+	static float highThreshold;
+	static int method;
+	static bool inpaintBackgroundMask;
+	static bool isKinect2;
 
 	LocalConfig() :
 		Config() {
-			params.push_back(new Parameter<string> ("inputTopic", &inputTopic, "what topic the node should read from"));
+			params.push_back(new Parameter<std::vector<std::string> > ("cameraTopics", &cameraTopics, "what camera topics the node should read from"));
 			params.push_back(new Parameter<string> ("outputTopic", &outputTopic, "what topic the node should publish to"));
 			params.push_back(new Parameter<string> ("nodeNS", &nodeNS, "node namespace"));
-			params.push_back(new Parameter<bool> ("enableFarClip", &enableFarClip, "enable far plane clipping (kinect must be facing straight down to work)"));
-			params.push_back(new Parameter<int> ("farClipSampleSize", &farClipSampleSize, "size of the are to sample for the far plane)"));
-			params.push_back(new Parameter<bool> ("displayCloud", &displayCloud, "display the output point cloud"));
-			params.push_back(new Parameter<bool> ("displayColorMask", &displayColorMask, "display the color mask used to filter the point cloud"));
-			params.push_back(new Parameter<bool> ("displayDepthMask", &displayDepthMask, "display the depth mask used to filter the point cloud"));
-			params.push_back(new Parameter<bool> ("displayLowMask", &displayLowMask, "display the low mask used to filter the point cloud"));
-			params.push_back(new Parameter<bool> ("displayHighMask", &displayHighMask, "display the high mask used to filter the point cloud"));
-			params.push_back(new Parameter<bool> ("displayThresholdMask", &displayThresholdMask, "display the threshold mask used to filter the point cloud"));
-			params.push_back(new Parameter<bool> ("displayCombinedMask", &displayCombinedMask, "display the combined mask used to filter the point cloud"));
-			params.push_back(new Parameter<bool> ("displayBackgroundDepth", &displayBackgroundDepth, "display the background depth used to filter the point cloud"));
-			params.push_back(new Parameter<int> ("averageImages", &averageImages, "number of depth maps to average for the background depth image"));
-			params.push_back(new Parameter<int> ("depthThreshold", &depthThreshold, "how much closer than the background image something must be to be segmented"));
+			params.push_back(new Parameter<bool> ("displayMasks", &displayMasks, "display the various masks used to filter the point cloud"));
 			params.push_back(new Parameter<int> ("kSamples", &kSamples, "K samples for pcl noise removal"));
 			params.push_back(new Parameter<float> ("deviations", &deviations, "standard deviations for pcl noise removal"));
-			params.push_back(new Parameter<float> ("r", &r, "r"));
-			params.push_back(new Parameter<int> ("n", &n, "n"));
 			params.push_back(new Parameter<float> ("clusterTolerance", &clusterTolerance, "clusterTolerance"));
 			params.push_back(new Parameter<int> ("clusterMinSize", &clusterMinSize, "clusterMinSize"));
 			params.push_back(new Parameter<float> ("downsampleAmount", &downsampleAmount, "downsample leaf size"));
+			params.push_back(new Parameter<int> ("maskSize", &maskSize, "mask size"));
+			params.push_back(new Parameter<float> ("lowThreshold", &lowThreshold, "low threshold"));
+			params.push_back(new Parameter<float> ("highThreshold", &highThreshold, "high threshold"));
+			params.push_back(new Parameter<int> ("method", &method, "which segmentation method to use: 0=remove all points below threshold, 1=remove points below threshold only around lifted sections of rope"));
+			params.push_back(new Parameter<bool> ("inpaintBackgroundMask", &inpaintBackgroundMask, "use inpainting to fill in missing portions of the background mask"));
+			params.push_back(new Parameter<bool> ("isKinect2", &isKinect2, "use kinect v2 parameters"));
 		}
 };
 
-string LocalConfig::inputTopic = "/kinect1/sd/points";
+std::vector<std::string> LocalConfig::cameraTopics = boost::assign::list_of("/kinect1/depth_registered/points");//("/kinect2/sd/points");
 string LocalConfig::nodeNS = "/preprocessor/kinect1";
 string LocalConfig::outputTopic = "/preprocessor/kinect1/points";
-bool LocalConfig::enableFarClip = false;
-int LocalConfig::farClipSampleSize = 15;
-bool LocalConfig::displayCloud = false;
-bool LocalConfig::displayDepthMask = false;
-bool LocalConfig::displayColorMask = false;
-bool LocalConfig::displayLowMask = false;
-bool LocalConfig::displayHighMask = false;
-bool LocalConfig::displayThresholdMask = false;
-bool LocalConfig::displayCombinedMask = false;
-bool LocalConfig::displayBackgroundDepth = false;
-int LocalConfig::averageImages = 20;
-int LocalConfig::depthThreshold = 100;
+bool LocalConfig::displayMasks = false;
 int LocalConfig::kSamples = 10;
 float LocalConfig::deviations = 1.5;
-float LocalConfig::r = 0.025;
-int LocalConfig::n = 10;
-float LocalConfig::downsampleAmount = 0.006;
-float LocalConfig::clusterTolerance = 0.03;
-int LocalConfig::clusterMinSize = 100;
+float LocalConfig::downsampleAmount = 0.005;
+float LocalConfig::clusterTolerance = 0.05;
+int LocalConfig::clusterMinSize = 30;
+int LocalConfig::maskSize = 21;
+float LocalConfig::lowThreshold = 0.008;
+float LocalConfig::highThreshold = 0.03;
+int LocalConfig::method = 0;
+bool LocalConfig::inpaintBackgroundMask = false;
+bool LocalConfig::isKinect2 = false;
+
 
 
 const std::string CLOUD_NAME = "rendered";
-const int minx=175, maxx=255, miny=100, maxy=255, minz=0, maxz=255;
 const float BAD_POINT = numeric_limits<float>::quiet_NaN();
-const Mat DEPTH_KERNEL = getStructuringElement( MORPH_CROSS, Size(3, 3));
-const Mat ERODE_KERNEL = getStructuringElement( MORPH_RECT, Size(32, 32));
-const int MIN_L = 0, MAX_L = 255, MIN_A = 115, MAX_A = 255, MIN_B = 0, MAX_B = 255;
+int nCameras = LocalConfig::cameraTopics.size();
+
+std::vector<Eigen::Matrix4f> transforms;
 
 class PreprocessorSegmentationNode {
 public:
 	ros::Publisher m_cloudPub, m_imagePub, m_depthPub;
-	ColorCloudPtr m_cloud, m_highCloud;
-	Mat m_backgroundDepth, m_depth, m_color, m_depthMask, m_colorMask, m_highMask, m_lowMask, m_thresholdMask, m_combinedMask;
+	std::vector<ColorCloudPtr> m_clouds;
 	pcl::visualization::PCLVisualizer::Ptr m_visualizer;
-	int m_imagesGathered;
-	int m_maxDepth;
-	vector<Mat> m_backgroundImages;
-	bool m_visualizer_init, m_backgroundDepth_init;
+	std::vector<bool> m_transforms_init, m_backgrounds_init;
+	std::vector<Mat> m_backgrounds;
+	std::vector<ros::Subscriber> m_subs;
 
-	ros::Subscriber m_sub;
-
-
-	void cloudCB(const sensor_msgs::PointCloud2ConstPtr& input) {
-		pcl::fromROSMsg(*input, *m_cloud);
-		pcl::copyPointCloud(*m_cloud, *m_highCloud);
-
-		m_color = toCVMatImage(m_cloud);
-		m_depth = toCVMatDepthImage(m_cloud);
-
-		if(!m_backgroundDepth_init) {
-			//create the background depth image
-			createBackgroundDepth(m_depth);
-		} else {
-			m_colorMask = createColorMask(m_color); //looks for red color
-			m_depthMask = createDepthMask(m_depth);
-			m_thresholdMask = createThresholdMask(m_depthMask); //separates rope into parts above and on the table
-			m_highMask = m_depthMask > 1200;
-			m_highMask &= m_thresholdMask > 0; //rope lifted in the air
-			m_lowMask = m_depthMask > 0;
-			m_lowMask &= m_thresholdMask == 0; //rope lying on the table
-			m_combinedMask = createCombinedMask(m_colorMask, m_lowMask, m_highMask);
-
-			if(LocalConfig::displayColorMask) imshow("Color Mask", m_colorMask);
-			if(LocalConfig::displayDepthMask) imshow("Depth Mask", m_depthMask);
-			if(LocalConfig::displayHighMask) imshow("High Mask", m_highMask);
-			if(LocalConfig::displayLowMask) imshow("High Mask", m_lowMask);
-			if(LocalConfig::displayThresholdMask) imshow("Threshold Mask", m_thresholdMask);
-			if(LocalConfig::displayCombinedMask) imshow("Combined Mask", m_combinedMask);
-			if(LocalConfig::displayBackgroundDepth) imshow("Background Depth", m_backgroundDepth);
+	int getTopicIndex(string topic) {
+		std::vector<string>::iterator it = std::find(LocalConfig::cameraTopics.begin(), LocalConfig::cameraTopics.end(), topic);
+		if (it == LocalConfig::cameraTopics.end())
+			return -1;
+		else
+			return std::distance(LocalConfig::cameraTopics.begin(), it);
+	}
 
 
-			for (int i=0; i<m_cloud->height; ++i) {
-				for (int j=0; j<m_cloud->width; ++j) {
-					if (m_combinedMask.at<uint8_t>(i,j) == 0) {
-						m_cloud->at(m_cloud->width*i+j).x =  BAD_POINT;
-						m_cloud->at(m_cloud->width*i+j).y =  BAD_POINT;
-						m_cloud->at(m_cloud->width*i+j).z =  BAD_POINT;
-						m_cloud->at(m_cloud->width*i+j).r = 0;
-						m_cloud->at(m_cloud->width*i+j).g = 0;
-						m_cloud->at(m_cloud->width*i+j).b = 0;
+	void cloudCB(const sensor_msgs::PointCloud2ConstPtr& input, const std::string &topic) {
+		int index = getTopicIndex(topic);
+		if(index == -1) {
+			throw std::invalid_argument("camera topic not found");
+		}
+
+		pcl::fromROSMsg(*input, *m_clouds[index]);
+
+		Mat color = toCVMatImage(m_clouds[index]);
+		Mat depth = toCVMatDepthImage(m_clouds[index]);
+
+		if(!m_transforms_init[index]) {
+			//load camera transform matrix
+			loadTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + string(input->header.frame_id) + ".tf", transforms[index]);
+			m_transforms_init[index] =  true;
+		}
+
+		if(!m_backgrounds_init[index]) {
+			//create background z height image
+			Mat mask = createBackgroundMask(color);
+
+			for (int i=0; i<m_clouds[index]->height; ++i) {
+				for (int j=0; j<m_clouds[index]->width; ++j) {
+					if (mask.at<uint8_t>(i,j) == 0) {
+						m_clouds[index]->at(m_clouds[index]->width*i+j).x =  BAD_POINT;
+						m_clouds[index]->at(m_clouds[index]->width*i+j).y =  BAD_POINT;
+						m_clouds[index]->at(m_clouds[index]->width*i+j).z =  BAD_POINT;
+						m_clouds[index]->at(m_clouds[index]->width*i+j).r = 0;
+						m_clouds[index]->at(m_clouds[index]->width*i+j).g = 0;
+						m_clouds[index]->at(m_clouds[index]->width*i+j).b = 0;
 					}
 				}
 			}
 
-			vector<int> indices;
-			pcl::removeNaNFromPointCloud(*m_cloud, *m_cloud, indices);
+			pcl::transformPointCloud(*m_clouds[index], *m_clouds[index], transforms[index]);
 
-			m_cloud = removeOutliers(m_cloud, LocalConfig::deviations, LocalConfig::kSamples);
-			m_cloud = downsampleCloud(m_cloud, LocalConfig::downsampleAmount);
-//			m_cloud = removeRadiusOutliers(m_cloud, LocalConfig::r, LocalConfig::n);
-			m_cloud = clusterFilter(m_cloud, LocalConfig::clusterTolerance, LocalConfig::clusterMinSize);
+			Mat backgroundHeightMap(depth.size(), CV_32FC1), inpaintMask(depth.size(), CV_8UC1);
 
-
-			if(LocalConfig::displayCloud) {
-				displayCloud(m_cloud);
+			#pragma omp parallel for
+			for (int r = 0; r < backgroundHeightMap.rows; ++r) {
+				float *itD = backgroundHeightMap.ptr<float>(r);
+				uint8_t *itB = inpaintMask.ptr<uint8_t>(r);
+				for (size_t c = 0; c < (size_t) backgroundHeightMap.cols; ++c, ++itD, ++itB) {
+					if(mask.at<uint8_t>(r, c) == 0 || abs(m_clouds[index]->at(c, r).z) > 0.05)
+						*itB = 255;
+					else {
+						*itD = -m_clouds[index]->at(c, r).z;
+						*itB = 0;
+					}
+				}
 			}
 
-			cvtColor(m_color, m_color, CV_BGR2BGRA);
+			if(LocalConfig::inpaintBackgroundMask) {
+				backgroundHeightMap.convertTo(backgroundHeightMap, CV_8UC1, 127.0/0.05, 127);
+				inpaint(backgroundHeightMap, inpaintMask, backgroundHeightMap, 25, INPAINT_TELEA);
+				backgroundHeightMap.convertTo(backgroundHeightMap, CV_32FC1, 0.05/127.0, -0.05);
+			}
+
+			backgroundHeightMap.copyTo(m_backgrounds[index]);
+			m_backgrounds_init[index] = true;
+		}
+
+		Mat colorMask = createColorMask(color);
+
+		for (int i=0; i<m_clouds[index]->height; ++i) {
+			for (int j=0; j<m_clouds[index]->width; ++j) {
+				if (colorMask.at<uint8_t>(i,j) == 0) {
+					m_clouds[index]->at(m_clouds[index]->width*i+j).x =  BAD_POINT;
+					m_clouds[index]->at(m_clouds[index]->width*i+j).y =  BAD_POINT;
+					m_clouds[index]->at(m_clouds[index]->width*i+j).z =  BAD_POINT;
+					m_clouds[index]->at(m_clouds[index]->width*i+j).r = 0;
+					m_clouds[index]->at(m_clouds[index]->width*i+j).g = 0;
+					m_clouds[index]->at(m_clouds[index]->width*i+j).b = 0;
+				}
+			}
+		}
+
+		pcl::transformPointCloud(*m_clouds[index], *m_clouds[index], transforms[index]);
+
+		Mat heightMap(depth.size(), CV_32FC1);
+
+		#pragma omp parallel for
+		for (int r = 0; r < heightMap.rows; ++r) {
+			float *itD = heightMap.ptr<float>(r);
+			const float *itB = m_backgrounds[index].ptr<float>(r);
+			for (size_t c = 0; c < (size_t) heightMap.cols; ++c, ++itD, ++itB) {
+				*itD = m_clouds[index]->at(c, r).z + *itB;
+				m_clouds[index]->at(c, r).z += *itB;
+			}
+		}
+
+		Mat low = heightMap < LocalConfig::lowThreshold;
+		if(LocalConfig::method == 1) {
+			Mat high = heightMap > LocalConfig::highThreshold;
+			if(LocalConfig::isKinect2) {
+				erode(high, high, getStructuringElement(MORPH_RECT, cv::Size(3, 3)));
+			}
+			dilate(high, high, getStructuringElement(MORPH_RECT, cv::Size(LocalConfig::maskSize, LocalConfig::maskSize)));
+			low &= high;
+		}
+
+		colorMask &= (low == 0);
+
+		for (int i=0; i<m_clouds[index]->height; ++i) {
+			for (int j=0; j<m_clouds[index]->width; ++j) {
+				if (colorMask.at<uint8_t>(i,j) == 0) {
+					m_clouds[index]->at(m_clouds[index]->width*i+j).x =  BAD_POINT;
+					m_clouds[index]->at(m_clouds[index]->width*i+j).y =  BAD_POINT;
+					m_clouds[index]->at(m_clouds[index]->width*i+j).z =  BAD_POINT;
+					m_clouds[index]->at(m_clouds[index]->width*i+j).r = 0;
+					m_clouds[index]->at(m_clouds[index]->width*i+j).g = 0;
+					m_clouds[index]->at(m_clouds[index]->width*i+j).b = 0;
+				}
+			}
+		}
+
+		if(LocalConfig::displayMasks) {
+			imshow("shadow removal", low);
+			imshow("color mask", colorMask);
+			imshow("height map", heightMap);
+			imshow("background height map", m_backgrounds[index] * 20);
+		}
+
+		vector<int> indices;
+		pcl::removeNaNFromPointCloud(*m_clouds[index], *m_clouds[index], indices);
+
+		if(index == 0) {
+			for(int i=1; i<nCameras; ++i) {
+				*m_clouds[index] += *m_clouds[i];
+			}
+
+			if(LocalConfig::isKinect2) m_clouds[index] = removeOutliers(m_clouds[index], LocalConfig::deviations, LocalConfig::kSamples);
+			m_clouds[index] = downsampleCloud(m_clouds[index], LocalConfig::downsampleAmount);
+			m_clouds[index] = clusterFilter(m_clouds[index], LocalConfig::clusterTolerance, LocalConfig::clusterMinSize);
+
+			pcl::transformPointCloud(*m_clouds[index], *m_clouds[index], Eigen::Matrix4f(transforms[index].inverse()));
+
+
+			cvtColor(color, color, CV_BGR2BGRA);
 			vector<Mat> channels;
-			split(m_color, channels);
-			channels[3] = m_combinedMask > 0;
-			merge(channels, m_color);
+			split(color, channels);
+			channels[3] = colorMask > 0;
+			merge(channels, color);
 
 			cv_bridge::CvImage image_msg;
 			image_msg.header = input->header;
 			image_msg.encoding = sensor_msgs::image_encodings::TYPE_8UC4;
-			image_msg.image = m_color;
+			image_msg.image = color;
 
 
 			cv_bridge::CvImage depth_msg;
 			depth_msg.header = input->header;
 			depth_msg.encoding = sensor_msgs::image_encodings::TYPE_32FC1;
-			depth_msg.image = m_depth;
+			depth_msg.image = depth;
 
 			m_imagePub.publish(image_msg.toImageMsg());
 			m_depthPub.publish(depth_msg.toImageMsg());
 
 			sensor_msgs::PointCloud2 msg_out;
-			pcl::toROSMsg(*m_cloud, msg_out);
+			pcl::toROSMsg(*m_clouds[index], msg_out);
 			msg_out.header = input->header;
 			m_cloudPub.publish(msg_out);
-
 		}
 
 		int key = waitKey(1);
@@ -213,141 +279,41 @@ public:
 
 	Mat createColorMask(Mat color) {
 		Mat red = colorSpaceMask(color, 0, 255, 160, 255, 0, 255, CV_BGR2Lab);
+		erode(red, red, getStructuringElement(MORPH_ELLIPSE, cv::Size(2, 2)));
+		dilate(red, red, getStructuringElement(MORPH_ELLIPSE, cv::Size(2, 2)));
+		return red;
+	}
+
+	Mat createBackgroundMask(Mat color) {
 		Mat green = colorSpaceMask(color, 50, 100, 0, 255, 0, 255, CV_BGR2HSV);
-
-		return red;// + green;
+		return green;
 	}
 
-	void createBackgroundDepth(Mat depth) {
-		depth.convertTo(depth, CV_16UC1, 30000.0);
-
-		if(m_imagesGathered < LocalConfig::averageImages) {
-			if(m_imagesGathered == 0) {
-				ROS_INFO("Gathering background depth samples");
+	void init(ros::NodeHandle& nh) {
+		for(int i=0; i<nCameras; ++i) {
+			m_subs.push_back(nh.subscribe<sensor_msgs::PointCloud2>(LocalConfig::cameraTopics[i], 1, boost::bind(&PreprocessorSegmentationNode::cloudCB, this, _1, LocalConfig::cameraTopics[i])));
+			ColorCloudPtr x(new ColorCloud);
+			m_clouds.push_back(x);
+			m_transforms_init.push_back(false);
+			m_backgrounds_init.push_back(false);
+			Mat empty;
+			m_backgrounds.push_back(empty);
+			transforms.reserve(nCameras);
+			if(LocalConfig::isKinect2) {
+				LocalConfig::maskSize = 100;
+				LocalConfig::clusterTolerance = 0.1;
+				LocalConfig::clusterMinSize = 200;
+				LocalConfig::lowThreshold = 0.006;
 			}
-
-			//gather background images
-			depth.copyTo(m_backgroundImages[m_imagesGathered]);
-			++m_imagesGathered;
-		} else {
-			//calculate average background depth from gathered samples
-			Mat average;
-			m_backgroundImages[0].convertTo(average, CV_32SC1);
-			for(int i = 1; i < m_backgroundImages.size(); ++i) {
-				Mat temp;
-				m_backgroundImages[i].convertTo(temp, CV_32SC1);
-				average += temp;
-			}
-			average.convertTo(m_backgroundDepth, CV_16UC1, 1.0/float(LocalConfig::averageImages));
-
-			//calculate the far plane cutoff
-			if(LocalConfig::enableFarClip) {
-				int denominator = 0;
-				for (int r = m_backgroundDepth.rows/2 - LocalConfig::farClipSampleSize; r < m_backgroundDepth.rows/2 + LocalConfig::farClipSampleSize; ++r) {
-					uint16_t *itA = m_backgroundDepth.ptr<uint16_t>(r);
-					for (size_t c = 0; c < (size_t) m_backgroundDepth.cols; ++c, ++itA) {
-						if(*itA != 0) {
-							m_maxDepth += *itA;
-							++denominator;
-						}
-
-					}
-				}
-				m_maxDepth /= denominator;
-				m_maxDepth += 10*LocalConfig::depthThreshold;
-			} else {
-				m_maxDepth = 65535;
-			}
-			m_backgroundDepth_init = true;
-
-			ROS_INFO("Created background depth image");
 		}
-	}
-
-	Mat createDepthMask(Mat depth) {
-		depth = filterDepth(depth, false);
-
-		return depth;
-	}
-
-	Mat createHighMask(Mat depthMask) {
-		Mat high = depthMask > LocalConfig::depthThreshold*14;
-		return high;
-	}
-
-	Mat createThresholdMask(Mat highMask) {
-		Mat out = highMask > 1800;
-		dilate(out, out, getStructuringElement( MORPH_RECT, Size(17, 17)));
-		return out;
-	}
-
-	Mat createCombinedMask(Mat color, Mat low, Mat high) {
-		Mat combined = high + low;
-		combined &= color;
-
-		dilate(combined, combined, getStructuringElement( MORPH_ELLIPSE, Size(2, 2)));
-		erode(combined, combined, getStructuringElement( MORPH_ELLIPSE, Size(2, 2)));
-
-		return combined;
-	}
-
-	//filter depth based on background depth
-	Mat filterDepth(Mat in, bool filterColor = true, int threshold = LocalConfig::depthThreshold) {
-		in.convertTo(in, CV_16UC1, 30000);
-		Mat out(in.rows, in.cols, CV_16UC1);
-		out.copyTo(m_highMask);
-		#pragma omp parallel for
-		for(int r = 0; r < in.rows; ++r) {
-		  const uint16_t *inPtr = in.ptr<uint16_t>(r);
-		  const uint16_t *backgroundPtr = m_backgroundDepth.ptr<uint16_t>(r);
-		  const uint8_t *colorPtr = m_colorMask.ptr<uint8_t>(r);
-		  uint16_t *outPtr = out.ptr<uint16_t>(r);
-		  for(size_t c = 0; c < (size_t)in.cols; ++c, ++inPtr, ++backgroundPtr, ++outPtr, ++colorPtr) {
-			  if((*colorPtr > 0 || !filterColor) && *inPtr + threshold < *backgroundPtr && *inPtr > 0 && *inPtr < m_maxDepth) {
-				  *outPtr = *backgroundPtr - *inPtr;
-			  } else {
-				  *outPtr = 0;
-			  }
-		  }
-		}
-		return out;
-	}
-
-	void displayCloud(ColorCloudPtr in) {
-		if(m_visualizer_init) {
-			m_visualizer->updatePointCloud(in, CLOUD_NAME);
-		} else {
-			m_visualizer->setBackgroundColor (0, 0, 0);
-			m_visualizer->initCameraParameters ();
-			m_visualizer->setCameraPosition(0, 0, 0, 0, -1, 0, 0.8575);
-			m_visualizer->addPointCloud<ColorPoint> (in, CLOUD_NAME);
-			m_visualizer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 3, CLOUD_NAME);
-			m_visualizer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_OPACITY, 1, CLOUD_NAME);
-
-			m_visualizer_init = true;
-		}
-		m_visualizer->spinOnce();
 	}
 
 	PreprocessorSegmentationNode(ros::NodeHandle& nh) :
-		m_sub(nh.subscribe<sensor_msgs::PointCloud2>(LocalConfig::inputTopic, 5, &PreprocessorSegmentationNode::cloudCB, this)),
-
-		m_cloudPub(nh.advertise<pcl::PCLPointCloud2>(LocalConfig::outputTopic, 10)),
+		m_cloudPub(nh.advertise<pcl::PCLPointCloud2>(LocalConfig::nodeNS + "/points", 10)),
 		m_imagePub(nh.advertise<sensor_msgs::Image> (LocalConfig::nodeNS + "/image", 5)),
 		m_depthPub(nh.advertise<sensor_msgs::Image> (LocalConfig::nodeNS + "/depth", 5)),
 
-
-		m_cloud(new ColorCloud),
-		m_highCloud(new ColorCloud),
-		m_visualizer(new pcl::visualization::PCLVisualizer("Cloud Viewer")),
-		m_backgroundImages(LocalConfig::averageImages),
-
-		m_imagesGathered(0),
-		m_maxDepth(255),
-		m_visualizer_init(false),
-		m_backgroundDepth_init(false) {}
-
-
+		m_visualizer(new pcl::visualization::PCLVisualizer("Cloud Viewer")){}
 };
 
 int main(int argc, char* argv[]) {
@@ -356,10 +322,14 @@ int main(int argc, char* argv[]) {
 	parser.addGroup(GeneralConfig());
 	parser.read(argc, argv);
 
-	ros::init(argc, argv, "point_cloud_processor");
+	nCameras = LocalConfig::cameraTopics.size();
+
+	ros::init(argc, argv, "preprocessor");
 	ros::NodeHandle nh(LocalConfig::nodeNS);
 
+
 	PreprocessorSegmentationNode tp(nh);
+	tp.init(nh);
 
 	ros::spin();
 }
