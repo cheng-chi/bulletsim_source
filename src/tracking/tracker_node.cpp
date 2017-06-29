@@ -153,11 +153,12 @@ int main(int argc, char* argv[]) {
 	ViewerConfig::cameraHomePosition = btVector3(0,0,1);
     ViewerConfig::cameraHomeCenter = btVector3(0,0,0);
     ViewerConfig::cameraHomeUp = btVector3(0,0,0);
-    if (TrackingConfig::direction ==90) {// turn 90 degree clockwise
+    // To change initialization view, turn virtual object certain degree clockwise
+    if (TrackingConfig::viewDirection == 90) {
         ViewerConfig::cameraHomeUp = btVector3(-1,0,0);
-    } else if (TrackingConfig::direction ==180) {
+    } else if (TrackingConfig::viewDirection == 180) {
     	ViewerConfig::cameraHomeUp = btVector3(0,-1,0);
-    } else if (TrackingConfig::direction ==270) {
+    } else if (TrackingConfig::viewDirection == 270) {
     	ViewerConfig::cameraHomeUp = btVector3(1,0,0);
     }
 

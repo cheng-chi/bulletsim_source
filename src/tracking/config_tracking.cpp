@@ -28,7 +28,7 @@ float TrackingConfig::kp_cloth = 1500;
 float TrackingConfig::kd_cloth = 30;
 float TrackingConfig::kp_box = 15;
 float TrackingConfig::kd_box = 0.2;
-int TrackingConfig::direction = 0;
+int TrackingConfig::viewDirection = 0;
 
 float TrackingConfig::tracked_node_distance = 0.05;
 float TrackingConfig::node_distance = 0.01; // 1 cm between nodes

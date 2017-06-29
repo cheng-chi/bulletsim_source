@@ -29,7 +29,7 @@ struct TrackingConfig : Config {
   static float kd_cloth;
   static float kp_box;
   static float kd_box;
-  static int direction;
+  static int viewDirection;
 
 
   static float tracked_node_distance;
@@ -62,7 +62,7 @@ struct TrackingConfig : Config {
         params.push_back(new Parameter<float>("kd_cloth", &kd_cloth, "damping for cloth"));
         params.push_back(new Parameter<float>("kp_box", &kp_box, "proportional gain for box"));
         params.push_back(new Parameter<float>("kd_box", &kd_box, "damping for box"));
-        params.push_back(new Parameter<int>("direction", &direction, "initialization direction"));
+        params.push_back(new Parameter<int>("viewDirection", &viewDirection, "initialization view"));
 
 
         params.push_back(new Parameter<float>("tracked_node_distance", &tracked_node_distance, "distance between tracked nodes. (length)/(# nodes - 1) = (side_length)/(resolution-1)"));
