@@ -223,3 +223,11 @@ Play the recorded point cloud
 rosbag play $BULLETSIM_SOURCE_DIR/data/bagfiles/testrope.bag
 ```
 If everything is installed correctly, when the rosbag is palyed, a window will immediately pop up and shows a virtual object that follows the motion of point cloud.
+
+## IV. Troubleshooting
+### 1. Kinect Calibration Node
+If the kinect calibrate node fails and tells you it sees 0/54 corners, follow the steps below:
+1. Open up rviz and display the raw point cloud from the kinect (/kinect1/depth_registered/points for Kinect v1 and /kinect1/sd/points for Kinect v2)
+2. Set "fixed frame" to kinect1_link
+3. If the point cloud does not display, try restarting rviz.  If the cloud still doesn't display after restarting rviz, restart the ros bridge
+4. Run the kinect_calibrate_node again.  It should work now
