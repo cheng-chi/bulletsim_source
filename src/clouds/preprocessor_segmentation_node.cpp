@@ -74,14 +74,14 @@ string LocalConfig::outputTopic = "/preprocessor/kinect1/points";
 bool LocalConfig::displayMasks = false;
 int LocalConfig::kSamples = 10;
 float LocalConfig::deviations = 1.5;
-float LocalConfig::downsampleAmount = 0.005;
+float LocalConfig::downsampleAmount = 0.006;
 float LocalConfig::clusterTolerance = 0.05;
 int LocalConfig::clusterMinSize = 30;
 int LocalConfig::maskSize = 21;
 float LocalConfig::lowThreshold = 0.008;
 float LocalConfig::highThreshold = 0.03;
 int LocalConfig::method = 0;
-bool LocalConfig::inpaintBackgroundMask = false;
+bool LocalConfig::inpaintBackgroundMask = true;
 bool LocalConfig::isKinect2 = false;
 
 
@@ -304,6 +304,7 @@ public:
 				LocalConfig::clusterTolerance = 0.1;
 				LocalConfig::clusterMinSize = 200;
 				LocalConfig::lowThreshold = 0.006;
+				LocalConfig::method = 1;
 			}
 		}
 	}
