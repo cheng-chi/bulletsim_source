@@ -218,7 +218,7 @@ int main(int argc, char* argv[]) {
 
 		pending = false;
 		ftime(&Time2);
-//		std::cout << "CPD Time:" << (Time2.time-Time1.time)*1000 + (Time2.millitm - Time1.millitm) << "ms" << std::endl;		// output the CPD usage time
+		std::cout << "CPD Time:" << (Time2.time-Time1.time)*1000 + (Time2.millitm - Time1.millitm) << "ms" << std::endl;		// output the CPD usage time
 		while (ros::ok() && !pending) {
 			ftime(&Time3);
 			//Do iteration
@@ -227,7 +227,7 @@ int main(int argc, char* argv[]) {
 			trackingVisualizer->update();
 			scene.step(BulletConfig::timeStep, BulletConfig::maxSubSteps, BulletConfig::fixedTimeStep);
 			ftime(&Time4);
-//			std::cout << "Bullet Time:" << (Time4.time-Time3.time)*1000 + (Time4.millitm - Time3.millitm) << "ms" << std::endl;			//output the bullet time
+			std::cout << "Bullet Time:" << (Time4.time-Time3.time)*1000 + (Time4.millitm - Time3.millitm) << "ms" << std::endl;			//output the bullet time
 			ros::spinOnce();
 		}
 		objPub.publish(toTrackedObjectMessage(trackedObj));
