@@ -118,11 +118,11 @@ Eigen::MatrixXf PhysicsTracker::CPDupdate() {
 
 	cpd::Nonrigid Nonrigid;
 	Nonrigid.normalize(true);
-	Nonrigid.beta(2.0);//original 2.0
+	Nonrigid.beta(3.0);//original 2.0
 	Nonrigid.lambda(4.0);//original 3.0 the bigger, the more accuracy, but less movable
 	Nonrigid.tolerance(1e-5);//1e-4 original
 	Nonrigid.linked(true);
-	Nonrigid.outliers(0.3);	//noise
+	Nonrigid.outliers(0.15);	//noise
 	Nonrigid.max_iterations(180);
 	Nonrigid.correspondence(false);
 
