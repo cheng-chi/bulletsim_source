@@ -143,21 +143,18 @@ bool saveScaleInfo(const string& filename, float scaleX, float scaleY) {
 	file << scaleX << " " << scaleY << " ";
 	file << "\n";
 	file.close();
-	cout << "Scale saved to " << filename << endl;
+	cout << "Scale information saved to " << filename << endl;
 	return true;
 }
 
 bool loadScaleInfo(const string& filename, std::vector<float> out) {
-	cerr << "wut" << endl;
   ifstream file;
   file.open(filename.c_str());
   if (file.fail()) {
 		cout << "Transform couldn't be loaded from " << filename << endl;
   	return false;
   }
-  cerr << "eh?" << endl;
   out.resize(2);
-  cerr << "daww" << endl;
   while (!file.eof()) {
 		file >> out[0];
 		file >> out[1];
