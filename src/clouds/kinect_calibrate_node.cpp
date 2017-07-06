@@ -53,7 +53,7 @@ struct LocalConfig : Config {
 	}
 };
 
-std::vector<std::string> LocalConfig::cameraTopics = boost::assign::list_of("/kinect1/depth_registered/points")("/kinect2/sd/points");
+std::vector<std::string> LocalConfig::cameraTopics = boost::assign::list_of("/kinect1/depth_registered/points");//("/kinect2/depth_registered/points");
 int LocalConfig::calibrationType = 0;
 float LocalConfig::squareSize = 0.0245;
 int LocalConfig::chessBoardWidth = 6;
@@ -92,6 +92,7 @@ void callback(const sensor_msgs::PointCloud2ConstPtr& input, const std::string &
 		ColorCloudPtr cloud_in(new ColorCloud());
 		switch(stage) {
 
+		//svd calibrate and save transform
 		case 0: {
 
 			pcl::fromROSMsg(*input, *cloud_in);
@@ -118,6 +119,7 @@ void callback(const sensor_msgs::PointCloud2ConstPtr& input, const std::string &
 			}
 			break;
 		}
+		//find how far the chessboard has moved in order to calculate scale information
 		case 1: {
 			pcl::fromROSMsg(*input, *cloud_in);
 			Matrix4f transform;
@@ -237,7 +239,7 @@ int main(int argc, char* argv[]) {
 			}
 		}
 		break;
-
+	//multiple kinect calibration and scale
 	case 2:
 		for (int i=0; i<nCameras; i++) {
 			initialized.push_back(false);
@@ -247,7 +249,7 @@ int main(int argc, char* argv[]) {
 		positions.resize(nCameras * 3 * 2);
 		bool finished;
 		finished = false;
-		for(stage = 0; stage < 2; ++stage) { //NUM STAGES
+		for(stage = 0; stage < 2; ++stage) {
 			for (int i=0; i<nCameras; i++) {
 				sub = nh.subscribe<sensor_msgs::PointCloud2>(LocalConfig::cameraTopics[i], 1, boost::bind(&callback, _1, LocalConfig::cameraTopics[i]));
 				while(!initialized[i]) {
@@ -272,6 +274,7 @@ int main(int argc, char* argv[]) {
 			}
 		}
 
+		//calculate scale info
 		for(int i=0; i<nCameras; ++i) {
 			float scaleX, scaleY;
 			if(i == 0) {

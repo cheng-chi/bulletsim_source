@@ -72,7 +72,7 @@ struct LocalConfig: Config {
 		}
 };
 
-std::vector<std::string> LocalConfig::cameraTopics = boost::assign::list_of("/kinect1/depth_registered/points");//("/kinect2/sd/points");
+std::vector<std::string> LocalConfig::cameraTopics = boost::assign::list_of("/kinect1/depth_registered/points");//("/kinect2/depth_registered/points");
 string LocalConfig::nodeNS = "/preprocessor/kinect1";
 string LocalConfig::outputTopic = "/preprocessor/kinect1/points";
 bool LocalConfig::displayMasks = false;
@@ -129,7 +129,7 @@ public:
 		Mat depth = toCVMatDepthImage(m_clouds[index]);
 
 		if(!m_transforms_init[index]) {
-			//load camera transform matrix
+			//load camera transform matrix and scale info
 			loadTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + string(input->header.frame_id) + ".tf", transforms[index]);
 			if(index == 0)
 				inverseTransform = Eigen::Matrix4f(transforms[index].inverse());
@@ -229,6 +229,7 @@ public:
 
 		colorMask &= (low == 0);
 		erode(colorMask, colorMask, getStructuringElement(MORPH_RECT, cv::Size(3, 3)));
+
 		for (int i=0; i<m_clouds[index]->height; ++i) {
 			for (int j=0; j<m_clouds[index]->width; ++j) {
 				if (colorMask.at<uint8_t>(i,j) == 0) {
