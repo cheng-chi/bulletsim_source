@@ -47,6 +47,8 @@ inline ColorCloudPtr removeConst(ConstColorCloudPtr cloud) {
 ColorCloudPtr transformPointCloud1(ColorCloudPtr in, Eigen::Affine3f transform);
 ColorCloudPtr extractInds(ColorCloudPtr in, const std::vector<int>& inds);
 
+bool loadScaleInfo(const std::string& filename, std::vector<float> out);
+bool saveScaleInfo(const std::string& filename, float scaleX, float scaleY);
 bool saveTransform(const std::string& filename, const Eigen::Matrix4f& t);
 bool loadTransform(const std::string& filename, Eigen::Matrix4f& t);
 bool saveTransform(const std::string& filename, const Eigen::Affine3f& t);

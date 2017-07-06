@@ -131,6 +131,41 @@ bool saveTransform(const string& filename, const Matrix4f& t) {
 	return true;
 }
 
+bool saveScaleInfo(const string& filename, float scaleX, float scaleY) {
+	ofstream file;
+	file.open(filename.c_str());
+	if (file.fail()) {
+		cout << "Scale couldn't be saved to " << filename << endl;
+		return false;
+	}
+
+	file.precision(20);
+	file << scaleX << " " << scaleY << " ";
+	file << "\n";
+	file.close();
+	cout << "Scale information saved to " << filename << endl;
+	return true;
+}
+
+bool loadScaleInfo(const string& filename, std::vector<float> out) {
+  ifstream file;
+  file.open(filename.c_str());
+  if (file.fail()) {
+		cout << "Transform couldn't be loaded from " << filename << endl;
+  	return false;
+  }
+  out.resize(2);
+  while (!file.eof()) {
+		file >> out[0];
+		file >> out[1];
+  }
+
+  file.close();
+	cout << "Scale loaded from " << filename << endl;
+  return true;
+}
+
+
 bool loadTransform(const string& filename, Matrix4f& t) {
   ifstream file;
   file.open(filename.c_str());
