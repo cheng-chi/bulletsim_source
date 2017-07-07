@@ -276,17 +276,20 @@ int main(int argc, char* argv[]) {
 
 		//calculate scale info
 		for(int i=0; i<nCameras; ++i) {
-			float scaleX, scaleY;
+			float scaleX, scaleY, scaleZ;
 			if(i == 0) {
 				scaleX = 1;
 				scaleY = 1;
+				scaleZ = 1;
 			} else {
 				scaleX = positions[0] / positions[i * 3];
 				scaleY = positions[1] / positions[i * 3 + 1];
+				scaleZ = positions[2] / positions[i * 3 + 2];
 			}
 			cerr << "scale X for Camera " << i << ": " << scaleX << endl;
 			cerr << "scale Y for Camera " << i << ": " << scaleY << endl;
-			saveScaleInfo(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + frameName[i] + ".sc", scaleX, scaleY);
+			cerr << "scale Z for Camera " << i << ": " << scaleZ << endl;
+			saveScaleInfo(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + frameName[i] + ".sc", scaleX, scaleY, scaleZ);
 		}
 
 		break;

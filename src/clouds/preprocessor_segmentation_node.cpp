@@ -85,7 +85,7 @@ int LocalConfig::maskSize = 21;
 float LocalConfig::lowThreshold = 0.008;
 float LocalConfig::highThreshold = 0.03;
 int LocalConfig::method = 0;
-bool LocalConfig::inpaintBackgroundMask = true;
+bool LocalConfig::inpaintBackgroundMask = false;
 bool LocalConfig::useBackgroundMask = true;
 bool LocalConfig::isKinect2 = false;
 bool LocalConfig::usingMultipleKinects = false;
@@ -242,6 +242,7 @@ public:
 				} else {
 					m_clouds[index]->at(m_clouds[index]->width*i+j).x *= scales[index][0];
 					m_clouds[index]->at(m_clouds[index]->width*i+j).y *= scales[index][1];
+					m_clouds[index]->at(m_clouds[index]->width*i+j).z *= scales[index][2];
 				}
 			}
 		}
@@ -319,7 +320,7 @@ public:
 			Mat empty;
 			m_backgrounds.push_back(empty);
 			transforms.reserve(nCameras);
-			scales.resize(nCameras, std::vector<float>(2, 1));
+			scales.resize(nCameras, std::vector<float>(3, 1));
 			if(LocalConfig::isKinect2) {
 				LocalConfig::maskSize = 100;
 				LocalConfig::clusterTolerance = 0.1;
@@ -329,7 +330,9 @@ public:
 			}
 			if(LocalConfig::usingMultipleKinects) {
 				LocalConfig::useBackgroundMask = false;
+				LocalConfig::inpaintBackgroundMask = false;
 				LocalConfig::method = 1;
+				LocalConfig::downsampleAmount = 0.001;
 			}
 		}
 	}
