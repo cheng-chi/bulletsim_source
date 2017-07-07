@@ -118,23 +118,11 @@ Eigen::MatrixXf PhysicsTracker::CPDupdate() {
 
 	cpd::Nonrigid Nonrigid;
 	Nonrigid.normalize(true);
-
-	//Small values of β produce locally smooth transformation
-	//larger values of β correspond to nearly pure translation transformation.
-
-	// beta 2.5 lambda 4.0, e-5, 0.1, 180 too sensitive to end point shadow
-	//beta bigger, lambda smaller or vise
-	//1 25
-
-	Nonrigid.beta(2.5);//original 2.0	decides the smoothness of the simulation, the smaller, the more locally smooth; the larger, more globally rigid
-	Nonrigid.lambda(4.0);//original 3.0 the bigger, the smoother deformation,  less accurate
-	Nonrigid.tolerance(1e-5);//1e-4 original
+	Nonrigid.beta(2.0);
+	Nonrigid.lambda(3.0);
+	Nonrigid.tolerance(1e-4);
 	Nonrigid.linked(true);
-	Nonrigid.outliers(0.1);	//noise
-	Nonrigid.max_iterations(180);//original 150
-	Nonrigid.correspondence(false);
-
-
+	Nonrigid.outliers(0.1);
 //	std::unique_ptr<cpd::GaussTransformFgt> fgt(new cpd::GaussTransformFgt());
 //	fgt->method(cpd::FgtMethod::DirectTree);
 //	Nonrigid.gauss_transform(std::move(fgt));
