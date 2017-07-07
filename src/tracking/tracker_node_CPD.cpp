@@ -79,7 +79,7 @@ void callback(const vector<sensor_msgs::PointCloud2ConstPtr>& cloud_msg, const v
 	}
 
 	if (firstCallback) {
-		filteredCloud = downsampleCloud(filteredCloud, 0.01*METERS);   //give a dense point cloud for better rope initialization
+		filteredCloud = downsampleCloud(filteredCloud, 0.005*METERS);   //give a dense point cloud for better rope initialization
 		firstCallback = false;
 	} else {
 		filteredCloud = downsampleCloud(filteredCloud, TrackingConfig::downsample*METERS);
@@ -106,7 +106,7 @@ int main(int argc, char* argv[]) {
 	parser.addGroup(RecordingConfig());
 	parser.read(argc, argv);
 
-//	struct timeb Time1, Time2, Time3, Time4;
+	struct timeb Time1, Time2, Time3, Time4;
 
 	nCameras = TrackingConfig::cameraTopics.size();
 
@@ -207,7 +207,7 @@ int main(int argc, char* argv[]) {
 	scene.setDrawing(true);
 
 	while (!exit_loop && ros::ok()) {
-//		ftime(&Time1);
+		ftime(&Time1);
 		//Update the inputs of the featureExtractors and visibilities (if they have any inputs)
 		cloudFeatures->updateInputs(filteredCloud, rgb_images[0], transformers[0]);
 		//for (int i=0; i<nCameras; i++)
@@ -217,17 +217,17 @@ int main(int argc, char* argv[]) {
 		Eigen::MatrixXf estPos_next = alg->CPDupdate();
 
 		pending = false;
-//		ftime(&Time2);
-//		std::cout << "CPD Time:" << (Time2.time-Time1.time)*1000 + (Time2.millitm - Time1.millitm) << "ms" << std::endl;		// output the CPD usage time
+		ftime(&Time2);
+		std::cout << "CPD Time:" << (Time2.time-Time1.time)*1000 + (Time2.millitm - Time1.millitm) << "ms" << std::endl;		// output the CPD usage time
 		while (ros::ok() && !pending) {
-//			ftime(&Time3);
+			ftime(&Time3);
 			//Do iteration
 			alg->updateFeatures();
 			objectFeatures->m_obj->CPDapplyEvidence(toBulletVectors(estPos_next));
 			trackingVisualizer->update();
 			scene.step(BulletConfig::timeStep, BulletConfig::maxSubSteps, BulletConfig::fixedTimeStep);
-//			ftime(&Time4);
-//			std::cout << "Bullet Time:" << (Time4.time-Time3.time)*1000 + (Time4.millitm - Time3.millitm) << "ms" << std::endl;			//output the bullet time
+			ftime(&Time4);
+			std::cout << "Bullet Time:" << (Time4.time-Time3.time)*1000 + (Time4.millitm - Time3.millitm) << "ms" << std::endl;			//output the bullet time
 			ros::spinOnce();
 		}
 		objPub.publish(toTrackedObjectMessage(trackedObj));
