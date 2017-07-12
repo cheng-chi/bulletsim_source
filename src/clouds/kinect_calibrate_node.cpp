@@ -58,9 +58,7 @@ int LocalConfig::calibrationType = 0;
 float LocalConfig::squareSize = 0.0245;
 int LocalConfig::chessBoardWidth = 6;
 int LocalConfig::chessBoardHeight = 9;
-bool LocalConfig::saveTransform = true;
-bool LocalConfig::filterCloud = false;
-
+bool LocalConfig::saveTransform = false;
 
 vector<Matrix4f> transforms;
 std::vector<std::string> frameName;
@@ -85,6 +83,19 @@ int getTopicIndex(string topic) {
 		return std::distance(LocalConfig::cameraTopics.begin(), it);
 }
 
+ColorCloudPtr filterCloud(ColorCloudPtr in) {
+	ColorCloudPtr out = ColorCloudPtr(new ColorCloud());
+
+	ROS_INFO("Filtering cloud, might take a while");
+	pcl::MedianFilter<ColorPoint> med;
+	med.setInputCloud(in);
+	med.setWindowSize(20);
+	med.setMaxAllowedMovement(0.5);
+	med.applyFilter(*out);
+
+	return out;
+}
+
 void callback(const sensor_msgs::PointCloud2ConstPtr& input, const std::string &topic) {
 	int index = getTopicIndex(topic);
 
@@ -101,6 +112,7 @@ void callback(const sensor_msgs::PointCloud2ConstPtr& input, const std::string &
 			if (found_corners) {
 				if(failureCount > 0) cerr << "\rCamera " << index << " found chessboard!                                                                    ";
 				cerr << endl;
+				if(LocalConfig::filterCloud) cloud_in = filterCloud(cloud_in);
 				ROS_INFO("SVD calibration on camera %d succeeded %d/%d corners.", index, found_corners, LocalConfig::chessBoardWidth*LocalConfig::chessBoardHeight);
 				frameName[index] = input->header.frame_id;
 				if (LocalConfig::saveTransform){
@@ -127,6 +139,7 @@ void callback(const sensor_msgs::PointCloud2ConstPtr& input, const std::string &
 			if (found_corners1) {
 				if(failureCount > 0) cerr << "\rCamera " << index << " found chessboard!                                                                    ";
 				cerr << endl;
+				if(LocalConfig::filterCloud) cloud_in = filterCloud(cloud_in);
 				ROS_INFO("SVD calibration on camera %d succeeded %d/%d corners.", index, found_corners1, LocalConfig::chessBoardWidth*LocalConfig::chessBoardHeight);
 				ColorCloudPtr temp(new ColorCloud());
 				ColorPoint pt;
@@ -173,6 +186,9 @@ int main(int argc, char* argv[]) {
 	ros::init(argc, argv,"kinectCalibrate");
 	ros::NodeHandle nh;
 
+	ColorCloudPtr cloud_in(new ColorCloud());
+	sensor_msgs::PointCloud2 msg_out;
+
 	switch (LocalConfig::calibrationType) {
 	// Load from file calibration
 	case 0:
@@ -193,37 +209,14 @@ int main(int argc, char* argv[]) {
 
 			sensor_msgs::PointCloud2ConstPtr msg_in = ros::topic::waitForMessage<sensor_msgs::PointCloud2>(LocalConfig::cameraTopics[i], nh);
 			frameName.push_back(msg_in->header.frame_id);
-			ColorCloudPtr cloud_in(new ColorCloud());
 			pcl::fromROSMsg(*msg_in, *cloud_in);
 
 			if(LocalConfig::filterCloud) {
-				ROS_INFO("Filtering cloud, might take a while");
-				cv::Mat color = toCVMatImage(cloud_in);
-				cv::Mat mask = colorSpaceMask(color, 30, 120, 30, 120, 30, 120, CV_BGR2RGB);
-				mask |= colorSpaceMask(color, 200, 255, 200, 255, 200, 255, CV_BGR2RGB);
+				cloud_in = filterCloud(cloud_in);
 
-				cv::dilate(mask, mask, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2, 2)));
-				cv::erode(mask, mask, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(15, 15)));
-				cv::dilate(mask, mask, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(60, 60)));
 
-				for (int k=0; k<cloud_in->height; ++k) {
-					for (int j=0; j<cloud_in->width; ++j) {
-						if (mask.at<uint8_t>(k,j) == 0) {
-							cloud_in->at(cloud_in->width*k+j).x = BAD_POINT;
-							cloud_in->at(cloud_in->width*k+j).y = BAD_POINT;
-							cloud_in->at(cloud_in->width*k+j).z = BAD_POINT;
-							cloud_in->at(cloud_in->width*k+j).r = 0;
-							cloud_in->at(cloud_in->width*k+j).g = 0;
-							cloud_in->at(cloud_in->width*k+j).b = 0;
-						}
-					}
-				}
-
-				pcl::MedianFilter<ColorPoint> med;
-				med.setInputCloud(cloud_in);
-				med.setWindowSize(50);
-				med.setMaxAllowedMovement(0.5);
-				med.applyFilter(*cloud_in);
+				pcl::toROSMsg(*cloud_in, msg_out);
+				msg_out.header = msg_in->header;
 			}
 
 			int found_corners = getChessBoardPose(cloud_in, LocalConfig::chessBoardWidth, LocalConfig::chessBoardHeight, LocalConfig::squareSize, transforms[i]);
@@ -303,11 +296,14 @@ int main(int argc, char* argv[]) {
 
 	ros::Rate rate(30);
 	ROS_INFO("Publish /ground transforms to topic /tf");
+	ros::Publisher pub = nh.advertise<pcl::PCLPointCloud2>("filtered/points", 10);
+
 	while (nh.ok()){
 		try {
 			for (int i=0; i<nCameras; i++) {
 				broadcastKinectTransform(toBulletTransform((Affine3f) transforms[i]), frameName[i], "/ground", *broadcaster, *listener);
 			}
+			pub.publish(msg_out);
 			rate.sleep();
 		} catch (tf::TransformException ex) {
 			ROS_WARN("transforms not loaded yet!  Sleeping for 1 second");
