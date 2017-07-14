@@ -84,7 +84,7 @@ int LocalConfig::clusterMinSize = 30;
 int LocalConfig::maskSize = 21;
 float LocalConfig::lowThreshold = 0.008;
 float LocalConfig::highThreshold = 0.03;
-int LocalConfig::method = 0;
+int LocalConfig::method = 1;
 bool LocalConfig::inpaintBackgroundMask = false;
 bool LocalConfig::useBackgroundMask = true;
 bool LocalConfig::isKinect2 = false;
@@ -99,13 +99,13 @@ int nCameras = LocalConfig::cameraTopics.size();
 std::vector<Eigen::Matrix4f> transforms;
 Eigen::Matrix4f inverseTransform;
 std::vector< std::vector<float> > scales;
+std::vector<Mat> backgrounds;
 
 class PreprocessorSegmentationNode {
 public:
 	ros::Publisher m_cloudPub, m_imagePub, m_depthPub;
 	std::vector<ColorCloudPtr> m_clouds;
 	std::vector<bool> m_transforms_init, m_backgrounds_init;
-	std::vector<Mat> m_backgrounds;
 	std::vector<ros::Subscriber> m_subs;
 
 	int getTopicIndex(string topic) {
@@ -130,61 +130,61 @@ public:
 
 		if(!m_transforms_init[index]) {
 			//load camera transform matrix and scale info
-			loadTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + string(input->header.frame_id) + ".tf", transforms[index]);
+//			loadTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + string(input->header.frame_id) + ".tf", transforms[index]);
 			if(index == 0)
 				inverseTransform = Eigen::Matrix4f(transforms[index].inverse());
 			loadScaleInfo(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + string(input->header.frame_id) + ".sc", scales[index]);
-			m_transforms_init[index] =  true;
+			m_transforms_init[index] = true;
 		}
 
 		if(!m_backgrounds_init[index]) {
-			if(LocalConfig::useBackgroundMask) {
-				//create background z height image
-				Mat mask = createBackgroundMask(color);
-
-				for (int i=0; i<m_clouds[index]->height; ++i) {
-					for (int j=0; j<m_clouds[index]->width; ++j) {
-						if (mask.at<uint8_t>(i,j) == 0) {
-							m_clouds[index]->at(m_clouds[index]->width*i+j).x =  BAD_POINT;
-							m_clouds[index]->at(m_clouds[index]->width*i+j).y =  BAD_POINT;
-							m_clouds[index]->at(m_clouds[index]->width*i+j).z =  BAD_POINT;
-							m_clouds[index]->at(m_clouds[index]->width*i+j).r = 0;
-							m_clouds[index]->at(m_clouds[index]->width*i+j).g = 0;
-							m_clouds[index]->at(m_clouds[index]->width*i+j).b = 0;
-						}
-					}
-				}
-
-				pcl::transformPointCloud(*m_clouds[index], *m_clouds[index], transforms[index]);
-
-				Mat backgroundHeightMap(depth.size(), CV_32FC1), inpaintMask(depth.size(), CV_8UC1);
-
-				#pragma omp parallel for
-				for (int r = 0; r < backgroundHeightMap.rows; ++r) {
-					float *itD = backgroundHeightMap.ptr<float>(r);
-					uint8_t *itB = inpaintMask.ptr<uint8_t>(r);
-					for (size_t c = 0; c < (size_t) backgroundHeightMap.cols; ++c, ++itD, ++itB) {
-						if(mask.at<uint8_t>(r, c) == 0 || abs(m_clouds[index]->at(c, r).z) > 0.05)
-							*itB = 255;
-						else {
-							*itD = -m_clouds[index]->at(c, r).z;
-							*itB = 0;
-						}
-					}
-				}
-
-				if(LocalConfig::inpaintBackgroundMask) {
-					backgroundHeightMap.convertTo(backgroundHeightMap, CV_8UC1, 127.0/0.05, 127);
-					inpaint(backgroundHeightMap, inpaintMask, backgroundHeightMap, 25, INPAINT_TELEA);
-					backgroundHeightMap.convertTo(backgroundHeightMap, CV_32FC1, 0.05/127.0, -0.05);
-				}
-
-				backgroundHeightMap.copyTo(m_backgrounds[index]);
-			} else {
-				Mat backgroundHeightMap(depth.size(), CV_32FC1);
-				backgroundHeightMap.setTo(cv::Scalar(0,0,0));
-				backgroundHeightMap.copyTo(m_backgrounds[index]);
-			}
+//			if(LocalConfig::useBackgroundMask) {
+//				//create background z height image
+//				Mat mask = createBackgroundMask(color);
+//
+//				for (int i=0; i<m_clouds[index]->height; ++i) {
+//					for (int j=0; j<m_clouds[index]->width; ++j) {
+//						if (mask.at<uint8_t>(i,j) == 0) {
+//							m_clouds[index]->at(m_clouds[index]->width*i+j).x =  BAD_POINT;
+//							m_clouds[index]->at(m_clouds[index]->width*i+j).y =  BAD_POINT;
+//							m_clouds[index]->at(m_clouds[index]->width*i+j).z =  BAD_POINT;
+//							m_clouds[index]->at(m_clouds[index]->width*i+j).r = 0;
+//							m_clouds[index]->at(m_clouds[index]->width*i+j).g = 0;
+//							m_clouds[index]->at(m_clouds[index]->width*i+j).b = 0;
+//						}
+//					}
+//				}
+//
+//				pcl::transformPointCloud(*m_clouds[index], *m_clouds[index], transforms[index]);
+//
+//				Mat backgroundHeightMap(depth.size(), CV_32FC1), inpaintMask(depth.size(), CV_8UC1);
+//
+//				#pragma omp parallel for
+//				for (int r = 0; r < backgroundHeightMap.rows; ++r) {
+//					float *itD = backgroundHeightMap.ptr<float>(r);
+//					uint8_t *itB = inpaintMask.ptr<uint8_t>(r);
+//					for (size_t c = 0; c < (size_t) backgroundHeightMap.cols; ++c, ++itD, ++itB) {
+//						if(mask.at<uint8_t>(r, c) == 0 || abs(m_clouds[index]->at(c, r).z) > 0.05)
+//							*itB = 255;
+//						else {
+//							*itD = -m_clouds[index]->at(c, r).z;
+//							*itB = 0;
+//						}
+//					}
+//				}
+//
+//				if(LocalConfig::inpaintBackgroundMask) {
+//					backgroundHeightMap.convertTo(backgroundHeightMap, CV_8UC1, 127.0/0.05, 127);
+//					inpaint(backgroundHeightMap, inpaintMask, backgroundHeightMap, 25, INPAINT_TELEA);
+//					backgroundHeightMap.convertTo(backgroundHeightMap, CV_32FC1, 0.05/127.0, -0.05);
+//				}
+//
+//				backgroundHeightMap.copyTo(backgrounds[index]);
+//			} else {
+//				Mat backgroundHeightMap(depth.size(), CV_32FC1);
+//				backgroundHeightMap.setTo(cv::Scalar(0,0,0));
+//				backgroundHeightMap.copyTo(backgrounds[index]);
+//			}
 			m_backgrounds_init[index] = true;
 		}
 
@@ -210,7 +210,7 @@ public:
 		#pragma omp parallel for
 		for (int r = 0; r < heightMap.rows; ++r) {
 			float *itD = heightMap.ptr<float>(r);
-			const float *itB = m_backgrounds[index].ptr<float>(r);
+			const float *itB = backgrounds[index].ptr<float>(r);
 			for (size_t c = 0; c < (size_t) heightMap.cols; ++c, ++itD, ++itB) {
 				*itD = m_clouds[index]->at(c, r).z + *itB;
 				m_clouds[index]->at(c, r).z += *itB;
@@ -251,7 +251,7 @@ public:
 			imshow("shadow removal", low);
 			imshow("color mask", colorMask);
 			imshow("height map", heightMap);
-			imshow("background height map", m_backgrounds[index] * 20);
+			imshow("background height map", backgrounds[index] * 20);
 		}
 
 		if(index == 0) {
@@ -262,7 +262,8 @@ public:
 			vector<int> indices;
 			pcl::removeNaNFromPointCloud(*m_clouds[index], *m_clouds[index], indices);
 
-			if(LocalConfig::isKinect2) m_clouds[index] = removeOutliers(m_clouds[index], LocalConfig::deviations, LocalConfig::kSamples);
+			//if(LocalConfig::isKinect2)
+				m_clouds[index] = removeOutliers(m_clouds[index], LocalConfig::deviations, LocalConfig::kSamples);
 			m_clouds[index] = downsampleCloud(m_clouds[index], LocalConfig::downsampleAmount);
 			if(!LocalConfig::usingMultipleKinects) m_clouds[index] = clusterFilter(m_clouds[index], LocalConfig::clusterTolerance, LocalConfig::clusterMinSize);
 
@@ -317,9 +318,7 @@ public:
 			m_clouds.push_back(x);
 			m_transforms_init.push_back(false);
 			m_backgrounds_init.push_back(false);
-			Mat empty;
-			m_backgrounds.push_back(empty);
-			transforms.reserve(nCameras);
+
 			scales.resize(nCameras, std::vector<float>(3, 1));
 			if(LocalConfig::isKinect2) {
 				LocalConfig::maskSize = 100;
@@ -343,6 +342,7 @@ public:
 		m_depthPub(nh.advertise<sensor_msgs::Image> (LocalConfig::nodeNS + "/depth", 5)) {}
 };
 
+
 int main(int argc, char* argv[]) {
 	Parser parser;
 	parser.addGroup(LocalConfig());
@@ -353,6 +353,65 @@ int main(int argc, char* argv[]) {
 
 	ros::init(argc, argv, "preprocessor");
 	ros::NodeHandle nh(LocalConfig::nodeNS);
+
+	transforms.reserve(nCameras);
+
+	for(int i=0; i < nCameras; ++i) {
+		sensor_msgs::PointCloud2ConstPtr msg_in = ros::topic::waitForMessage<sensor_msgs::PointCloud2>(LocalConfig::cameraTopics[i], nh);
+
+		ColorCloudPtr cloud = ColorCloudPtr(new ColorCloud);
+		pcl::fromROSMsg(*msg_in, *cloud);
+
+		Mat color = toCVMatImage(cloud);
+
+		Mat mask = colorSpaceMask(color, 15, 105, 135, 245, 0, 255, CV_BGR2HSV); //green
+
+
+
+		mask += colorSpaceMask(color, 150, 255, 150, 255, 150, 255, CV_BGR2RGB); //white
+
+
+		loadTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + string(msg_in->header.frame_id) + ".tf", transforms[i]);
+		cerr << "Transform yeeee: " << endl << transforms[i] << endl;
+		pcl::transformPointCloud(*cloud, *cloud, transforms[i]);
+
+		Mat backgroundHeightMap(color.size(), CV_32FC1), inpaintMask(color.size(), CV_8UC1);
+
+		#pragma omp parallel for
+		for (int r = 0; r < backgroundHeightMap.rows; ++r) {
+			float *itD = backgroundHeightMap.ptr<float>(r);
+			uint8_t *itB = inpaintMask.ptr<uint8_t>(r);
+			for (size_t c = 0; c < (size_t) backgroundHeightMap.cols; ++c, ++itD, ++itB) {
+				if(mask.at<uint8_t>(r, c) == 0 || abs(cloud->at(c, r).z) > 0.15) {
+					if(abs(cloud->at(c, r).z) > 0.10) {
+						*itB = 0;
+					} else {
+						*itB = 255;
+					}
+					*itD = 0;
+				} else {
+					*itD = -cloud->at(c, r).z;
+					*itB = 0;
+				}
+			}
+		}
+
+//		inpaintMask = colorSpaceMask(color, 0, 255, 160, 255, 0, 255, CV_BGR2Lab);
+//
+//
+//		backgroundHeightMap.convertTo(backgroundHeightMap, CV_8UC1, 127.0/0.05, 127);
+//
+//
+//		dilate(inpaintMask, inpaintMask, getStructuringElement(MORPH_ELLIPSE, cv::Size(9, 9)));
+//		inpaint(backgroundHeightMap, inpaintMask, backgroundHeightMap, 50, INPAINT_TELEA);
+//
+//		backgroundHeightMap.convertTo(backgroundHeightMap, CV_32FC1, 0.05/127.0, -0.05);
+
+		backgrounds.push_back(backgroundHeightMap);
+
+	}
+
+
 
 
 	PreprocessorSegmentationNode tp(nh);

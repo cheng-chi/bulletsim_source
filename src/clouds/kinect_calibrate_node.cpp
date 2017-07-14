@@ -11,10 +11,12 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
 #include <pcl/ros/conversions.h>
+#include <pcl/registration/transformation_estimation_svd_scale.h>
 #include <pcl/registration/transformation_estimation_svd.h>
 #include <pcl/registration/icp.h>
 #include <pcl/filters/median_filter.h>
 #include <pcl/visualization/cloud_viewer.h>
+#include <pcl/common/common.h>
 #include <cv_bridge/cv_bridge.h>
 #include "clouds/utils_pcl.h"
 #include "clouds/cloud_ops.h"
@@ -29,6 +31,7 @@
 ////////////////////////
 #include <pcl_conversions/pcl_conversions.h>
 #include <stdio.h>
+#include <math.h>
 
 using namespace std;
 using namespace Eigen;
@@ -58,9 +61,12 @@ int LocalConfig::calibrationType = 0;
 float LocalConfig::squareSize = 0.0245;
 int LocalConfig::chessBoardWidth = 6;
 int LocalConfig::chessBoardHeight = 9;
-bool LocalConfig::saveTransform = false;
+bool LocalConfig::saveTransform = true;
+bool LocalConfig::filterCloud = false;
 
 vector<Matrix4f> transforms;
+vector<ColorCloudPtr> corners;
+vector<ColorCloudPtr> refCorners;
 std::vector<std::string> frameName;
 //vector<ros::Subscriber> subscriptions;
 ros::Subscriber sub;
@@ -72,6 +78,9 @@ int failureCount = 0;
 
 boost::shared_ptr<tf::TransformBroadcaster> broadcaster;
 boost::shared_ptr<tf::TransformListener> listener;
+
+vector<sensor_msgs::PointCloud2> msg_out;
+sensor_msgs::PointCloud2 msg_out1;
 
 const float BAD_POINT = numeric_limits<float>::quiet_NaN();
 
@@ -113,6 +122,36 @@ void callback(const sensor_msgs::PointCloud2ConstPtr& input, const std::string &
 				if(failureCount > 0) cerr << "\rCamera " << index << " found chessboard!                                                                    ";
 				cerr << endl;
 				if(LocalConfig::filterCloud) cloud_in = filterCloud(cloud_in);
+
+
+
+				corners[index] = chessBoardCorners(cloud_in, LocalConfig::chessBoardWidth, LocalConfig::chessBoardHeight);
+				refCorners[index] = ColorCloudPtr(new ColorCloud);
+				for (int i=0; i<LocalConfig::chessBoardHeight; i++) {
+					for (int j=(LocalConfig::chessBoardWidth-1); j>=0; j--) {
+						ColorPoint pt;
+						pt.x = LocalConfig::squareSize * (j - ((float) LocalConfig::chessBoardWidth - 1.0)/2.0);
+						pt.y = LocalConfig::squareSize * (i - ((float) LocalConfig::chessBoardHeight - 1.0)/2.0);
+						pt.z = 0;
+						refCorners[index]->push_back(pt);
+					}
+				}
+
+				//Filter out the bad points from both point clouds (cloud_corners and cloudref_corners)
+				vector<int> badPoints;
+				for (int i=0; i<corners[index]->size(); i++) {
+					if (!pointIsFinite(corners[index]->at(i)))
+						badPoints.push_back(i);
+				}
+
+				for (int i=(badPoints.size()-1); i>=0; i--) {
+					corners[index]->erase(corners[index]->begin() + badPoints[i]);
+					refCorners[index]->erase(refCorners[index]->begin() + badPoints[i]);
+				}
+
+
+
+
 				ROS_INFO("SVD calibration on camera %d succeeded %d/%d corners.", index, found_corners, LocalConfig::chessBoardWidth*LocalConfig::chessBoardHeight);
 				frameName[index] = input->header.frame_id;
 				if (LocalConfig::saveTransform){
@@ -140,6 +179,104 @@ void callback(const sensor_msgs::PointCloud2ConstPtr& input, const std::string &
 				if(failureCount > 0) cerr << "\rCamera " << index << " found chessboard!                                                                    ";
 				cerr << endl;
 				if(LocalConfig::filterCloud) cloud_in = filterCloud(cloud_in);
+
+
+
+				ColorCloudPtr corner = chessBoardCorners(cloud_in, LocalConfig::chessBoardWidth, LocalConfig::chessBoardHeight);
+				pcl::transformPointCloud(*corner, *corner, transforms[index]);
+				Eigen::Vector4f centroid;
+				pcl::compute3DCentroid (*corner, centroid);
+
+				cerr << centroid(0) << ", " << centroid(1) << ", " << centroid(2) << ", " << centroid(3) << endl;
+				float offX = sqrt(centroid(0) * centroid(0) + centroid(2) * centroid(2)) * ((centroid(0) > 0) - (centroid(0) < 0));
+				float offY = sqrt(centroid(1) * centroid(1) + centroid(2) * centroid(2)) * ((centroid(1) > 0) - (centroid(1) < 0));
+
+				ColorCloudPtr refCorner = ColorCloudPtr(new ColorCloud);
+				ColorCloudPtr tempCorner = ColorCloudPtr(new ColorCloud);
+
+				pcl::copyPointCloud(*corner, *tempCorner);
+
+
+				for (int i=0; i<LocalConfig::chessBoardHeight; i++) {
+					for (int j=(LocalConfig::chessBoardWidth-1); j>=0; j--) {
+						ColorPoint pt;
+						pt.x = LocalConfig::squareSize * (j - ((float) LocalConfig::chessBoardWidth - 1.0)/2.0);
+						pt.y = LocalConfig::squareSize * (i - ((float) LocalConfig::chessBoardHeight - 1.0)/2.0);
+						pt.z = 0;
+						refCorner->push_back(pt);
+					}
+				}
+
+				for(int i=0; i<tempCorner->size(); ++i) {
+					tempCorner->at(i).z = 0;
+				}
+
+
+
+				Matrix4f translation, rotation;
+
+				translation <<	1, 0, 0, -centroid(0),
+								0, 1, 0, -centroid(1),
+								0, 0, 1, 0,
+								0, 0, 0, 1;
+
+				pcl::transformPointCloud(*tempCorner, *tempCorner, translation);
+
+
+
+
+				pcl::registration::TransformationEstimationSVD<ColorPoint, ColorPoint> estimation_svd;
+				estimation_svd.estimateRigidTransformation(*tempCorner, *refCorner, rotation);
+
+
+
+
+				pcl::transformPointCloud(*refCorner, *refCorner, Matrix4f(rotation.inverse()));
+				pcl::transformPointCloud(*refCorner, *refCorner, Matrix4f(translation.inverse()));
+
+//				pcl::transformPointCloud(*corner, *corner, Matrix4f(rotation.inverse()));
+//				pcl::transformPointCloud(*corner, *corner, Matrix4f(translation.inverse()));
+
+//				for (int i=0; i<LocalConfig::chessBoardHeight; i++) {
+//					for (int j=(LocalConfig::chessBoardWidth-1); j>=0; j--) {
+//						ColorPoint pt;
+//						pt.x = offX + LocalConfig::squareSize * (j - ((float) LocalConfig::chessBoardWidth - 1.0)/2.0);
+//						pt.y = offY + LocalConfig::squareSize * (i - ((float) LocalConfig::chessBoardHeight - 1.0)/2.0);
+//						pt.z = 0;
+//						refCorner->push_back(pt);
+//					}
+//				}
+
+//				for (int i=0; i<corner->size(); i++) {
+//					ColorPoint pt;
+//					pt.x = sqrt(corner->at(i).x * corner->at(i).x + corner->at(i).z * corner->at(i).z);
+//					pt.y = sqrt(corner->at(i).y * corner->at(i).y + corner->at(i).z * corner->at(i).z);
+//					pt.z = 0;
+//					refCorner->push_back(pt);
+//				}
+
+				//Filter out the bad points from both point clouds (cloud_corners and cloudref_corners)
+				vector<int> badPoints;
+				for (int i=0; i<corner->size(); i++) {
+					if (!pointIsFinite(corner->at(i)))
+						badPoints.push_back(i);
+				}
+
+				for (int i=(badPoints.size()-1); i>=0; i--) {
+					corner->erase(corner->begin() + badPoints[i]);
+					refCorner->erase(refCorner->begin() + badPoints[i]);
+				}
+
+				pcl::transformPointCloud(*corner, *corner, Matrix4f(transforms[index].inverse()));
+				*corners[index] += *corner;
+				*refCorners[index] += *refCorner;
+
+
+
+
+
+
+
 				ROS_INFO("SVD calibration on camera %d succeeded %d/%d corners.", index, found_corners1, LocalConfig::chessBoardWidth*LocalConfig::chessBoardHeight);
 				ColorCloudPtr temp(new ColorCloud());
 				ColorPoint pt;
@@ -175,6 +312,25 @@ void callback(const sensor_msgs::PointCloud2ConstPtr& input, const std::string &
 
 }
 
+ColorCloudPtr removeErrorPoints(ColorCloudPtr in) {
+	ColorCloudPtr out = ColorCloudPtr(new ColorCloud(*in));
+
+	for(int j=0; j<2; ++j) {
+		pcl::PointXYZRGB min, max;
+		pcl::getMinMax3D (*out, min, max);
+		for(int i=0; i<out->size(); ++i) {
+			if(out->at(i).x == min.x || out->at(i).x == max.x
+					|| out->at(i).x == min.y || out->at(i).x == max.y
+					|| out->at(i).x == min.z || out->at(i).x == max.z) {
+				out->erase(out->begin() + i);
+			}
+
+		}
+	}
+
+	return out;
+}
+
 int main(int argc, char* argv[]) {
 	Parser parser;
 	parser.addGroup(LocalConfig());
@@ -187,7 +343,10 @@ int main(int argc, char* argv[]) {
 	ros::NodeHandle nh;
 
 	ColorCloudPtr cloud_in(new ColorCloud());
-	sensor_msgs::PointCloud2 msg_out;
+
+
+
+
 
 	switch (LocalConfig::calibrationType) {
 	// Load from file calibration
@@ -213,10 +372,6 @@ int main(int argc, char* argv[]) {
 
 			if(LocalConfig::filterCloud) {
 				cloud_in = filterCloud(cloud_in);
-
-
-				pcl::toROSMsg(*cloud_in, msg_out);
-				msg_out.header = msg_in->header;
 			}
 
 			int found_corners = getChessBoardPose(cloud_in, LocalConfig::chessBoardWidth, LocalConfig::chessBoardHeight, LocalConfig::squareSize, transforms[i]);
@@ -233,10 +388,13 @@ int main(int argc, char* argv[]) {
 		}
 		break;
 	//multiple kinect calibration and scale
-	case 2:
+	case 2: {
 		for (int i=0; i<nCameras; i++) {
+			ColorCloudPtr placeHolder = ColorCloudPtr(new ColorCloud);
 			initialized.push_back(false);
 			frameName.push_back("");
+			corners.push_back(placeHolder);
+			refCorners.push_back(placeHolder);
 		}
 		initialized[0] = false;
 		positions.resize(nCameras * 3 * 2);
@@ -267,25 +425,115 @@ int main(int argc, char* argv[]) {
 			}
 		}
 
-		//calculate scale info
-		for(int i=0; i<nCameras; ++i) {
-			float scaleX, scaleY, scaleZ;
-			if(i == 0) {
-				scaleX = 1;
-				scaleY = 1;
-				scaleZ = 1;
-			} else {
-				scaleX = positions[0] / positions[i * 3];
-				scaleY = positions[1] / positions[i * 3 + 1];
-				scaleZ = positions[2] / positions[i * 3 + 2];
+
+
+//		sensor_msgs::PointCloud2 m;
+
+		pcl::registration::TransformationEstimationSVD<ColorPoint, ColorPoint> estimation_svd;
+		estimation_svd.estimateRigidTransformation(*corners[0], *refCorners[0], transforms[0]);
+
+//
+		pcl::transformPointCloud(*corners[0], *corners[0], transforms[0]);
+
+		pcl::PointXYZRGB min0, max0;
+		pcl::getMinMax3D (*removeErrorPoints(corners[0]), min0, max0);
+
+//
+//		pcl::toROSMsg(*corners[0], m);
+//		m.header.frame_id = frameName[0];
+//
+//		msg_out.push_back(m);
+
+
+
+		for(int i=1; i<nCameras; ++i) {
+			pcl::registration::TransformationEstimationSVD<ColorPoint, ColorPoint> estimation_svd;
+			estimation_svd.estimateRigidTransformation(*corners[i], *corners[0], transforms[i]);
+
+			Matrix4f temp;
+
+			if (transforms[i](2,3) < 0)
+				transforms[i] = Vector4f(-1,1,-1,1).asDiagonal() * transforms[i];
+
+			pcl::transformPointCloud(*corners[i], *corners[i], transforms[i]);
+			pcl::PointXYZRGB minI, maxI;
+			pcl::getMinMax3D (*removeErrorPoints(corners[i]), minI, maxI);
+
+			temp <<	(max0.x-min0.x) / (maxI.x-minI.x), 0, 0, 0,
+					0, (max0.y-min0.y) / (maxI.y-minI.y), 0, 0,
+					0, 0, 1, 0,
+					0, 0, 0, 1;
+
+
+			pcl::transformPointCloud(*corners[i], *corners[i], temp);
+
+			transforms[i] = transforms[i] * temp;
+
+			Matrix4f s;
+			s << 0.5, 0, 0, 0,
+			     0, 0.5, 0, 0,
+			     0, 0, 1, 0,
+				 0, 0, 0, 1;
+
+			cerr << "scale? " << temp << endl;
+
+//			transforms[i] = transforms[i] * s;
+
+			Eigen::Matrix3f R = transforms[i].topLeftCorner(3,3);
+			cerr << "estimated scale " << std::sqrt( (R.transpose() * R).trace() / 3.0 ) << std::endl;
+
+//			pcl::transformPointCloud(*refCorners[index], *refCorners[index], Matrix4f(transforms[index].inverse()));
+//			pcl::toROSMsg(*refCorners[index], msg_out1);
+//			msg_out1.header = input->header;
+
+			if (LocalConfig::saveTransform){
+				saveTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + frameName[i] + ".tf", transforms[i]);
+				ROS_INFO("Calibration on camera %d is saved to file.", i);
 			}
-			cerr << "scale X for Camera " << i << ": " << scaleX << endl;
-			cerr << "scale Y for Camera " << i << ": " << scaleY << endl;
-			cerr << "scale Z for Camera " << i << ": " << scaleZ << endl;
-			saveScaleInfo(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + frameName[i] + ".sc", scaleX, scaleY, scaleZ);
 		}
 
+//		pcl::transformPointCloud(*corners[1], *corners[1], transforms[1]);
+//		*corners[0] = *corners[0] + *corners[1];
+		sensor_msgs::PointCloud2 m, m1, m2;
+
+		pcl::toROSMsg(*corners[0], m);
+		m.header.frame_id = "/ground";
+
+		msg_out.push_back(m);
+
+		pcl::toROSMsg(*corners[1], m1);
+		m1.header.frame_id = "/ground";
+		msg_out.push_back(m1);
+
+		pcl::toROSMsg(*refCorners[0], m2);
+		m2.header.frame_id = "/ground";
+
+		msg_out.push_back(m2);
+
+
+
+
+
+		//calculate scale info
+//		for(int i=0; i<nCameras; ++i) {
+//			float scaleX, scaleY, scaleZ;
+//			if(i == 0) {
+//				scaleX = 1;
+//				scaleY = 1;
+//				scaleZ = 1;
+//			} else {
+//				scaleX = positions[0] / positions[i * 3];
+//				scaleY = positions[1] / positions[i * 3 + 1];
+//				scaleZ = positions[2] / positions[i * 3 + 2];
+//			}
+//			cerr << "scale X for Camera " << i << ": " << scaleX << endl;
+//			cerr << "scale Y for Camera " << i << ": " << scaleY << endl;
+//			cerr << "scale Z for Camera " << i << ": " << scaleZ << endl;
+//			saveScaleInfo(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + frameName[i] + ".sc", scaleX, scaleY, scaleZ);
+//		}
+
 		break;
+	}
 	// Invalid calibration type
 	default:
 		ROS_WARN("Calibration type %d is invalid.", LocalConfig::calibrationType);
@@ -296,14 +544,20 @@ int main(int argc, char* argv[]) {
 
 	ros::Rate rate(30);
 	ROS_INFO("Publish /ground transforms to topic /tf");
-	ros::Publisher pub = nh.advertise<pcl::PCLPointCloud2>("filtered/points", 10);
+
+	ros::Publisher pub = nh.advertise<pcl::PCLPointCloud2>("corners1/points", 10);
+	ros::Publisher pub1 = nh.advertise<pcl::PCLPointCloud2>("corners2/points", 10);
+	ros::Publisher pub2 = nh.advertise<pcl::PCLPointCloud2>("corners3/points", 10);
+
 
 	while (nh.ok()){
 		try {
 			for (int i=0; i<nCameras; i++) {
 				broadcastKinectTransform(toBulletTransform((Affine3f) transforms[i]), frameName[i], "/ground", *broadcaster, *listener);
 			}
-			pub.publish(msg_out);
+			pub.publish(msg_out[0]);
+			pub1.publish(msg_out[1]);
+			pub2.publish(msg_out[2]);
 			rate.sleep();
 		} catch (tf::TransformException ex) {
 			ROS_WARN("transforms not loaded yet!  Sleeping for 1 second");
