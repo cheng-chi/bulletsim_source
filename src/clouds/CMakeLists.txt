@@ -39,6 +39,9 @@ target_link_libraries(cloud_merger_node clouds utils ${PCL_LIBRARIES} ${OpenCV_L
 add_executable(kinect_calibrate_node kinect_calibrate_node.cpp)
 target_link_libraries(kinect_calibrate_node clouds utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${catkin_LIBRARIES} tf cv_bridge boost_program_options)
 
+add_executable(kinect_alignment_node kinect_alignment_node.cpp)
+target_link_libraries(kinect_alignment_node clouds utils ${PCL_LIBRARIES} ${OpenCV_LIBS} ${catkin_LIBRARIES} tf cv_bridge boost_program_options)
+
 add_executable(save_cloud_node save_cloud_node.cpp)
 target_link_libraries(save_cloud_node utils ${PCL_LIBRARIES} ${catkin_LIBRARIES} tf boost_program_options)
 

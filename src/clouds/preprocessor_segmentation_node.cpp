@@ -49,6 +49,7 @@ struct LocalConfig: Config {
 	static bool useBackgroundMask;
 	static bool isKinect2;
 	static bool usingMultipleKinects;
+	static float zOffset;
 
 	LocalConfig() :
 		Config() {
@@ -69,6 +70,7 @@ struct LocalConfig: Config {
 			params.push_back(new Parameter<bool> ("useBackgroundMask", &useBackgroundMask, "use a background mask to improve heightmap accuracy"));
 			params.push_back(new Parameter<bool> ("isKinect2", &isKinect2, "use kinect v2 parameters"));
 			params.push_back(new Parameter<bool> ("usingMultipleKinects", &usingMultipleKinects, "changes parameters for multiple kinects"));
+			params.push_back(new Parameter<float> ("zOffset", &zOffset, "zOffset"));
 		}
 };
 
@@ -89,6 +91,7 @@ bool LocalConfig::inpaintBackgroundMask = false;
 bool LocalConfig::useBackgroundMask = true;
 bool LocalConfig::isKinect2 = false;
 bool LocalConfig::usingMultipleKinects = false;
+float LocalConfig::zOffset = -0.12;
 
 
 
@@ -96,10 +99,20 @@ const std::string CLOUD_NAME = "rendered";
 const float BAD_POINT = numeric_limits<float>::quiet_NaN();
 int nCameras = LocalConfig::cameraTopics.size();
 
-std::vector<Eigen::Matrix4f> transforms;
+std::vector<Eigen::Matrix4f> transforms, alignments;
 Eigen::Matrix4f inverseTransform;
 std::vector< std::vector<float> > scales;
 std::vector<Mat> backgrounds;
+vector<bool> initialized;
+
+int getTopicIndex(string topic) {
+	std::vector<string>::iterator it = std::find(LocalConfig::cameraTopics.begin(), LocalConfig::cameraTopics.end(), topic);
+	if (it == LocalConfig::cameraTopics.end())
+		return -1;
+	else
+		return std::distance(LocalConfig::cameraTopics.begin(), it);
+}
+
 
 class PreprocessorSegmentationNode {
 public:
@@ -107,15 +120,6 @@ public:
 	std::vector<ColorCloudPtr> m_clouds;
 	std::vector<bool> m_transforms_init, m_backgrounds_init;
 	std::vector<ros::Subscriber> m_subs;
-
-	int getTopicIndex(string topic) {
-		std::vector<string>::iterator it = std::find(LocalConfig::cameraTopics.begin(), LocalConfig::cameraTopics.end(), topic);
-		if (it == LocalConfig::cameraTopics.end())
-			return -1;
-		else
-			return std::distance(LocalConfig::cameraTopics.begin(), it);
-	}
-
 
 	void cloudCB(const sensor_msgs::PointCloud2ConstPtr& input, const std::string &topic) {
 		int index = getTopicIndex(topic);
@@ -131,9 +135,12 @@ public:
 		if(!m_transforms_init[index]) {
 			//load camera transform matrix and scale info
 //			loadTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + string(input->header.frame_id) + ".tf", transforms[index]);
-			if(index == 0)
+			if(index == 0) {
 				inverseTransform = Eigen::Matrix4f(transforms[index].inverse());
-			loadScaleInfo(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + string(input->header.frame_id) + ".sc", scales[index]);
+			} else {
+				loadTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + string(input->header.frame_id) + ".sc", transforms[index]);
+//				transforms[index] = transforms[index] * alignments[index];
+			}
 			m_transforms_init[index] = true;
 		}
 
@@ -212,8 +219,8 @@ public:
 			float *itD = heightMap.ptr<float>(r);
 			const float *itB = backgrounds[index].ptr<float>(r);
 			for (size_t c = 0; c < (size_t) heightMap.cols; ++c, ++itD, ++itB) {
-				*itD = m_clouds[index]->at(c, r).z + *itB;
-				m_clouds[index]->at(c, r).z += *itB;
+				*itD = m_clouds[index]->at(c, r).z + *itB + LocalConfig::zOffset;
+				m_clouds[index]->at(c, r).z += *itB + LocalConfig::zOffset;
 			}
 		}
 
@@ -342,25 +349,13 @@ public:
 		m_depthPub(nh.advertise<sensor_msgs::Image> (LocalConfig::nodeNS + "/depth", 5)) {}
 };
 
+void backgroundCB(const sensor_msgs::PointCloud2ConstPtr& input, const std::string &topic) {
+	int index = getTopicIndex(topic);
 
-int main(int argc, char* argv[]) {
-	Parser parser;
-	parser.addGroup(LocalConfig());
-	parser.addGroup(GeneralConfig());
-	parser.read(argc, argv);
-
-	nCameras = LocalConfig::cameraTopics.size();
-
-	ros::init(argc, argv, "preprocessor");
-	ros::NodeHandle nh(LocalConfig::nodeNS);
-
-	transforms.reserve(nCameras);
-
-	for(int i=0; i < nCameras; ++i) {
-		sensor_msgs::PointCloud2ConstPtr msg_in = ros::topic::waitForMessage<sensor_msgs::PointCloud2>(LocalConfig::cameraTopics[i], nh);
-
+	if(!initialized[index]) {
+		ColorCloudPtr cloud_in(new ColorCloud());
 		ColorCloudPtr cloud = ColorCloudPtr(new ColorCloud);
-		pcl::fromROSMsg(*msg_in, *cloud);
+		pcl::fromROSMsg(*input, *cloud);
 
 		Mat color = toCVMatImage(cloud);
 
@@ -371,9 +366,13 @@ int main(int argc, char* argv[]) {
 		mask += colorSpaceMask(color, 150, 255, 150, 255, 150, 255, CV_BGR2RGB); //white
 
 
-		loadTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + string(msg_in->header.frame_id) + ".tf", transforms[i]);
-		cerr << "Transform yeeee: " << endl << transforms[i] << endl;
-		pcl::transformPointCloud(*cloud, *cloud, transforms[i]);
+		if(index == 0) {
+			loadTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + string(input->header.frame_id) + ".tf", transforms[index]);
+		} else {
+			loadTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + string(input->header.frame_id) + ".sc", transforms[index]);
+		}
+		cerr << "Transform yeeee: " << endl << transforms[index] << endl;
+		pcl::transformPointCloud(*cloud, *cloud, transforms[index]);
 
 		Mat backgroundHeightMap(color.size(), CV_32FC1), inpaintMask(color.size(), CV_8UC1);
 
@@ -393,8 +392,10 @@ int main(int argc, char* argv[]) {
 					*itD = -cloud->at(c, r).z;
 					*itB = 0;
 				}
+//				*itD = 0; //remove thisFIOJFOIAFAFJASIOFJIOSAJ
 			}
 		}
+		initialized[index] = true;
 
 //		inpaintMask = colorSpaceMask(color, 0, 255, 160, 255, 0, 255, CV_BGR2Lab);
 //
@@ -406,10 +407,38 @@ int main(int argc, char* argv[]) {
 //		inpaint(backgroundHeightMap, inpaintMask, backgroundHeightMap, 50, INPAINT_TELEA);
 //
 //		backgroundHeightMap.convertTo(backgroundHeightMap, CV_32FC1, 0.05/127.0, -0.05);
-
+//		imshow("back " + i, backgroundHeightMap);
 		backgrounds.push_back(backgroundHeightMap);
 
 	}
+}
+
+
+int main(int argc, char* argv[]) {
+	Parser parser;
+	parser.addGroup(LocalConfig());
+	parser.addGroup(GeneralConfig());
+	parser.read(argc, argv);
+
+	nCameras = LocalConfig::cameraTopics.size();
+
+	ros::init(argc, argv, "preprocessor");
+	ros::NodeHandle nh(LocalConfig::nodeNS);
+
+	transforms.reserve(nCameras);
+	alignments.reserve(nCameras);
+	initialized.assign(nCameras, false);
+
+	ros::Subscriber sub;
+
+	for (int i=0; i<nCameras; i++) {
+		sub = nh.subscribe<sensor_msgs::PointCloud2>(LocalConfig::cameraTopics[i], 1, boost::bind(&backgroundCB, _1, LocalConfig::cameraTopics[i]));
+		while(!initialized[i]) {
+			ros::spinOnce();
+		}
+	}
+
+
 
 
 
