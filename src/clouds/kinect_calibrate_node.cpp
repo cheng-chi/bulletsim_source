@@ -64,13 +64,8 @@ bool LocalConfig::filterCloud = false;
 
 vector<Matrix4f> transforms;
 std::vector<std::string> frameName;
-//vector<ros::Subscriber> subscriptions;
 ros::Subscriber sub;
-vector<bool> initialized(1, 2);
-vector<float> positions;
-int stage;
 int nCameras;
-int failureCount = 0;
 
 boost::shared_ptr<tf::TransformBroadcaster> broadcaster;
 boost::shared_ptr<tf::TransformListener> listener;
@@ -85,81 +80,17 @@ int getTopicIndex(string topic) {
 		return std::distance(LocalConfig::cameraTopics.begin(), it);
 }
 
-void callback(const sensor_msgs::PointCloud2ConstPtr& input, const std::string &topic) {
-	int index = getTopicIndex(topic);
+ColorCloudPtr filterCloud(ColorCloudPtr in) {
+	ColorCloudPtr out = ColorCloudPtr(new ColorCloud());
 
-	if(!initialized[index]) {
-		ColorCloudPtr cloud_in(new ColorCloud());
-		switch(stage) {
+	ROS_INFO("Filtering cloud, might take a while");
+	pcl::MedianFilter<ColorPoint> med;
+	med.setInputCloud(in);
+	med.setWindowSize(20);
+	med.setMaxAllowedMovement(0.5);
+	med.applyFilter(*out);
 
-		//svd calibrate and save transform
-		case 0: {
-
-			pcl::fromROSMsg(*input, *cloud_in);
-
-			int found_corners = getChessBoardPose(cloud_in, LocalConfig::chessBoardWidth, LocalConfig::chessBoardHeight, LocalConfig::squareSize, transforms[index]);
-			if (found_corners) {
-				if(failureCount > 0) cerr << "\rCamera " << index << " found chessboard!                                                                    ";
-				cerr << endl;
-				ROS_INFO("SVD calibration on camera %d succeeded %d/%d corners.", index, found_corners, LocalConfig::chessBoardWidth*LocalConfig::chessBoardHeight);
-				frameName[index] = input->header.frame_id;
-				if (LocalConfig::saveTransform){
-					saveTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + input->header.frame_id + ".tf", transforms[index]);
-					ROS_INFO("Calibration on camera %d is saved to file.", index);
-				}
-				failureCount = 0;
-				initialized[index] = true;
-			} else {
-				if(failureCount > 20) {
-					cerr << "\rCamera " << index << " can't find the chessboard.  Try repositioning it.";
-				} else {
-					cerr << "\rCamera " << index << " searching for chessboard...";
-					++failureCount;
-				}
-			}
-			break;
-		}
-		//find how far the chessboard has moved in order to calculate scale information
-		case 1: {
-			pcl::fromROSMsg(*input, *cloud_in);
-			Matrix4f transform;
-			int found_corners1 = getChessBoardPose(cloud_in, LocalConfig::chessBoardWidth, LocalConfig::chessBoardHeight, LocalConfig::squareSize, transform);
-			if (found_corners1) {
-				if(failureCount > 0) cerr << "\rCamera " << index << " found chessboard!                                                                    ";
-				cerr << endl;
-				ROS_INFO("SVD calibration on camera %d succeeded %d/%d corners.", index, found_corners1, LocalConfig::chessBoardWidth*LocalConfig::chessBoardHeight);
-				ColorCloudPtr temp(new ColorCloud());
-				ColorPoint pt;
-				pt.x = 0;
-				pt.y = 0;
-				pt.z = 0;
-				temp->push_back(pt);
-				pcl::transformPointCloud(*temp, *temp, Eigen::Matrix4f(transforms[index].inverse()));
-				pcl::transformPointCloud(*temp, *temp, transform);
-
-				positions[index * 3] = temp->at(0).x;
-				positions[index * 3 + 1] = temp->at(0).y;
-				positions[index * 3 + 2] = temp->at(0).z;
-
-				failureCount = 0;
-				initialized[index] = true;
-			} else {
-				if(failureCount > 25) {
-					cerr << "\rCamera " << index << " can't find the chessboard.  Try repositioning it.";
-				} else {
-					cerr << "\rCamera " << index << " searching for chessboard...";
-					++failureCount;
-				}
-			}
-
-			break;
-		}
-		default:
-			ROS_WARN("Invalid stage %d.", stage);
-		}
-
-	}
-
+	return out;
 }
 
 int main(int argc, char* argv[]) {
@@ -239,57 +170,7 @@ int main(int argc, char* argv[]) {
 			}
 		}
 		break;
-	//multiple kinect calibration and scale
-	case 2:
-		for (int i=0; i<nCameras; i++) {
-			initialized.push_back(false);
-			frameName.push_back("");
-		}
-		initialized[0] = false;
-		positions.resize(nCameras * 3 * 2);
-		bool finished;
-		finished = false;
-		for(stage = 0; stage < 2; ++stage) {
-			for (int i=0; i<nCameras; i++) {
-				sub = nh.subscribe<sensor_msgs::PointCloud2>(LocalConfig::cameraTopics[i], 1, boost::bind(&callback, _1, LocalConfig::cameraTopics[i]));
-				while(!initialized[i]) {
-					ros::spinOnce();
-				}
-			}
 
-			for (int i=0; i<nCameras; i++) {
-				initialized[i] = false;
-			}
-			finished = false;
-
-			if(stage < 1) {
-				cerr << endl;
-				ROS_INFO ("Reposition the chessboard then hit ENTER to advance");
-
-				while(true) {
-					char c=getchar();
-					cerr << c;
-					if (c=='\n' || c==EOF) break;
-				}
-			}
-		}
-
-		//calculate scale info
-		for(int i=0; i<nCameras; ++i) {
-			float scaleX, scaleY;
-			if(i == 0) {
-				scaleX = 1;
-				scaleY = 1;
-			} else {
-				scaleX = positions[0] / positions[i * 3];
-				scaleY = positions[1] / positions[i * 3 + 1];
-			}
-			cerr << "scale X for Camera " << i << ": " << scaleX << endl;
-			cerr << "scale Y for Camera " << i << ": " << scaleY << endl;
-			saveScaleInfo(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + frameName[i] + ".sc", scaleX, scaleY);
-		}
-
-		break;
 	// Invalid calibration type
 	default:
 		ROS_WARN("Calibration type %d is invalid.", LocalConfig::calibrationType);
@@ -300,6 +181,7 @@ int main(int argc, char* argv[]) {
 
 	ros::Rate rate(30);
 	ROS_INFO("Publish /ground transforms to topic /tf");
+
 	while (nh.ok()){
 		try {
 			for (int i=0; i<nCameras; i++) {

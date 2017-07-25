@@ -13,6 +13,10 @@
 #include <opencv2/opencv.hpp>
 
 #include <pcl/point_cloud.h>
+#include <pcl/registration/transformation_estimation_svd_scale.h>
+#include <pcl/registration/transformation_estimation_svd.h>
+#include <pcl/registration/icp.h>
+#include <pcl/registration/convergence_criteria.h>
 
 #include <iostream>
 #include <vector>
@@ -45,10 +49,11 @@ struct LocalConfig: Config {
 	static float lowThreshold;
 	static float highThreshold;
 	static int method;
-	static bool inpaintBackgroundMask;
-	static bool useBackgroundMask;
 	static bool isKinect2;
-	static bool usingMultipleKinects;
+	static float zOffset;
+	static bool translateCloud;
+	static bool removeOutliers;
+	static int updateFrequency;
 
 	LocalConfig() :
 		Config() {
@@ -65,10 +70,11 @@ struct LocalConfig: Config {
 			params.push_back(new Parameter<float> ("lowThreshold", &lowThreshold, "low threshold"));
 			params.push_back(new Parameter<float> ("highThreshold", &highThreshold, "high threshold"));
 			params.push_back(new Parameter<int> ("method", &method, "which segmentation method to use: 0=remove all points below threshold, 1=remove points below threshold only around lifted sections of rope"));
-			params.push_back(new Parameter<bool> ("inpaintBackgroundMask", &inpaintBackgroundMask, "use inpainting to fill in missing portions of the background mask"));
-			params.push_back(new Parameter<bool> ("useBackgroundMask", &useBackgroundMask, "use a background mask to improve heightmap accuracy"));
 			params.push_back(new Parameter<bool> ("isKinect2", &isKinect2, "use kinect v2 parameters"));
-			params.push_back(new Parameter<bool> ("usingMultipleKinects", &usingMultipleKinects, "changes parameters for multiple kinects"));
+			params.push_back(new Parameter<float> ("zOffset", &zOffset, "how high off the table the rope is (should be negative), needs to be set in order for shadow removal to work correctly"));
+			params.push_back(new Parameter<bool> ("translateCloud", &translateCloud, "Whether of not to apply the z offset to the point cloud"));
+			params.push_back(new Parameter<bool> ("removeOutliers", &removeOutliers, "run statistical outlier removal filter (slow)"));
+			params.push_back(new Parameter<int> ("updateFrequency", &updateFrequency, "how often to update the registration transformations between kinects"));
 		}
 };
 
@@ -84,28 +90,36 @@ int LocalConfig::clusterMinSize = 30;
 int LocalConfig::maskSize = 21;
 float LocalConfig::lowThreshold = 0.008;
 float LocalConfig::highThreshold = 0.03;
-int LocalConfig::method = 0;
-bool LocalConfig::inpaintBackgroundMask = true;
-bool LocalConfig::useBackgroundMask = true;
+int LocalConfig::method = 1;
 bool LocalConfig::isKinect2 = false;
-bool LocalConfig::usingMultipleKinects = false;
+float LocalConfig::zOffset = -0.12;
+bool LocalConfig::translateCloud = false;
+bool LocalConfig::removeOutliers = false;
+int LocalConfig::updateFrequency = 30;
 
 
 
 const std::string CLOUD_NAME = "rendered";
 const float BAD_POINT = numeric_limits<float>::quiet_NaN();
 int nCameras = LocalConfig::cameraTopics.size();
+int cycle = 0, totalPoints = 0;
 
-std::vector<Eigen::Matrix4f> transforms;
+std::vector<Eigen::Matrix4f> transforms, scales, alignments;
 Eigen::Matrix4f inverseTransform;
-std::vector< std::vector<float> > scales;
+vector<bool> transforms_init;
+
+int getTopicIndex(string topic) {
+	std::vector<string>::iterator it = std::find(LocalConfig::cameraTopics.begin(), LocalConfig::cameraTopics.end(), topic);
+	if (it == LocalConfig::cameraTopics.end())
+		return -1;
+	else
+		return std::distance(LocalConfig::cameraTopics.begin(), it);
+}
 
 class PreprocessorSegmentationNode {
 public:
 	ros::Publisher m_cloudPub, m_imagePub, m_depthPub;
 	std::vector<ColorCloudPtr> m_clouds;
-	std::vector<bool> m_transforms_init, m_backgrounds_init;
-	std::vector<Mat> m_backgrounds;
 	std::vector<ros::Subscriber> m_subs;
 
 	int getTopicIndex(string topic) {
@@ -128,66 +142,6 @@ public:
 		Mat color = toCVMatImage(m_clouds[index]);
 		Mat depth = toCVMatDepthImage(m_clouds[index]);
 
-		if(!m_transforms_init[index]) {
-			//load camera transform matrix and scale info
-			loadTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + string(input->header.frame_id) + ".tf", transforms[index]);
-			if(index == 0)
-				inverseTransform = Eigen::Matrix4f(transforms[index].inverse());
-			loadScaleInfo(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + string(input->header.frame_id) + ".sc", scales[index]);
-			m_transforms_init[index] =  true;
-		}
-
-		if(!m_backgrounds_init[index]) {
-			if(LocalConfig::useBackgroundMask) {
-				//create background z height image
-				Mat mask = createBackgroundMask(color);
-
-				for (int i=0; i<m_clouds[index]->height; ++i) {
-					for (int j=0; j<m_clouds[index]->width; ++j) {
-						if (mask.at<uint8_t>(i,j) == 0) {
-							m_clouds[index]->at(m_clouds[index]->width*i+j).x =  BAD_POINT;
-							m_clouds[index]->at(m_clouds[index]->width*i+j).y =  BAD_POINT;
-							m_clouds[index]->at(m_clouds[index]->width*i+j).z =  BAD_POINT;
-							m_clouds[index]->at(m_clouds[index]->width*i+j).r = 0;
-							m_clouds[index]->at(m_clouds[index]->width*i+j).g = 0;
-							m_clouds[index]->at(m_clouds[index]->width*i+j).b = 0;
-						}
-					}
-				}
-
-				pcl::transformPointCloud(*m_clouds[index], *m_clouds[index], transforms[index]);
-
-				Mat backgroundHeightMap(depth.size(), CV_32FC1), inpaintMask(depth.size(), CV_8UC1);
-
-				#pragma omp parallel for
-				for (int r = 0; r < backgroundHeightMap.rows; ++r) {
-					float *itD = backgroundHeightMap.ptr<float>(r);
-					uint8_t *itB = inpaintMask.ptr<uint8_t>(r);
-					for (size_t c = 0; c < (size_t) backgroundHeightMap.cols; ++c, ++itD, ++itB) {
-						if(mask.at<uint8_t>(r, c) == 0 || abs(m_clouds[index]->at(c, r).z) > 0.05)
-							*itB = 255;
-						else {
-							*itD = -m_clouds[index]->at(c, r).z;
-							*itB = 0;
-						}
-					}
-				}
-
-				if(LocalConfig::inpaintBackgroundMask) {
-					backgroundHeightMap.convertTo(backgroundHeightMap, CV_8UC1, 127.0/0.05, 127);
-					inpaint(backgroundHeightMap, inpaintMask, backgroundHeightMap, 25, INPAINT_TELEA);
-					backgroundHeightMap.convertTo(backgroundHeightMap, CV_32FC1, 0.05/127.0, -0.05);
-				}
-
-				backgroundHeightMap.copyTo(m_backgrounds[index]);
-			} else {
-				Mat backgroundHeightMap(depth.size(), CV_32FC1);
-				backgroundHeightMap.setTo(cv::Scalar(0,0,0));
-				backgroundHeightMap.copyTo(m_backgrounds[index]);
-			}
-			m_backgrounds_init[index] = true;
-		}
-
 		Mat colorMask = createColorMask(color);
 
 		for (int i=0; i<m_clouds[index]->height; ++i) {
@@ -203,20 +157,37 @@ public:
 			}
 		}
 
-		pcl::transformPointCloud(*m_clouds[index], *m_clouds[index], transforms[index]);
+		//load transform and scale matrices
+		if(!transforms_init[index]) {
+			loadTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + input->header.frame_id + ".tf", transforms[index]);
+			alignments[index] = Eigen::Matrix4f::Identity();
 
+			if(index == 0) {
+				inverseTransform = Eigen::Matrix4f(transforms[index].inverse());
+				scales[index] = Eigen::Matrix4f::Identity();
+			} else {
+				loadTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + input->header.frame_id + ".sc", scales[index]);
+			}
+
+			transforms_init[index] = true;
+		}
+
+		//transform all clouds to ground frame
+		pcl::transformPointCloud(*m_clouds[index], *m_clouds[index], transforms[index]);
+		pcl::transformPointCloud(*m_clouds[index], *m_clouds[index], scales[index]);
+
+		//create height map
 		Mat heightMap(depth.size(), CV_32FC1);
 
 		#pragma omp parallel for
 		for (int r = 0; r < heightMap.rows; ++r) {
 			float *itD = heightMap.ptr<float>(r);
-			const float *itB = m_backgrounds[index].ptr<float>(r);
-			for (size_t c = 0; c < (size_t) heightMap.cols; ++c, ++itD, ++itB) {
-				*itD = m_clouds[index]->at(c, r).z + *itB;
-				m_clouds[index]->at(c, r).z += *itB;
+			for (size_t c = 0; c < (size_t) heightMap.cols; ++c, ++itD) {
+				*itD = m_clouds[index]->at(c, r).z + LocalConfig::zOffset;
 			}
 		}
 
+		//adjacent point removal
 		Mat low = heightMap < LocalConfig::lowThreshold;
 		if(LocalConfig::method == 1) {
 			Mat high = heightMap > LocalConfig::highThreshold;
@@ -228,7 +199,7 @@ public:
 		}
 
 		colorMask &= (low == 0);
-		erode(colorMask, colorMask, getStructuringElement(MORPH_RECT, cv::Size(3, 3)));
+		if(!LocalConfig::removeOutliers) erode(colorMask, colorMask, getStructuringElement(MORPH_RECT, cv::Size(3, 3)));
 
 		for (int i=0; i<m_clouds[index]->height; ++i) {
 			for (int j=0; j<m_clouds[index]->width; ++j) {
@@ -239,35 +210,85 @@ public:
 					m_clouds[index]->at(m_clouds[index]->width*i+j).r = 0;
 					m_clouds[index]->at(m_clouds[index]->width*i+j).g = 0;
 					m_clouds[index]->at(m_clouds[index]->width*i+j).b = 0;
-				} else {
-					m_clouds[index]->at(m_clouds[index]->width*i+j).x *= scales[index][0];
-					m_clouds[index]->at(m_clouds[index]->width*i+j).y *= scales[index][1];
 				}
 			}
 		}
 
+		//display masks for debug purposes
 		if(LocalConfig::displayMasks) {
 			imshow("shadow removal", low);
 			imshow("color mask", colorMask);
 			imshow("height map", heightMap);
-			imshow("background height map", m_backgrounds[index] * 20);
 		}
 
+		//register and combine kinect point clouds
 		if(index == 0) {
+			vector<int> indices1;
+			pcl::removeNaNFromPointCloud(*m_clouds[index], *m_clouds[index], indices1);
+
+			if(totalPoints == 0) {
+				totalPoints = m_clouds[index]->size();
+			}
+
+			cerr << "\rtotalPoints:" << totalPoints << " currentPoints: " << m_clouds[index]->size() << " cycle: " << cycle << "      ";
+
+			//only run icp once every updateFrequency frames and if there are enough points in the first kinect's cloud
+			if(cycle == LocalConfig::updateFrequency && m_clouds[index]->size() > 0.6 * totalPoints) {
+				++cycle;
+				m_clouds[index] = downsampleCloud(m_clouds[index], LocalConfig::downsampleAmount);
+				if(LocalConfig::removeOutliers) m_clouds[index] = removeOutliers(m_clouds[index], LocalConfig::deviations, LocalConfig::kSamples);
+
+				for(int i=1; i<nCameras; ++i) {
+					m_clouds[i] = downsampleCloud(m_clouds[i], LocalConfig::downsampleAmount);
+					if(LocalConfig::removeOutliers) m_clouds[i] = removeOutliers(m_clouds[i], LocalConfig::deviations, LocalConfig::kSamples);
+
+					vector<int> indices;
+					pcl::removeNaNFromPointCloud(*m_clouds[i], *m_clouds[i], indices);
+
+					pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
+					Eigen::Matrix4f T;
+					icp.setInputSource (m_clouds[i]);
+					icp.setInputTarget (m_clouds[index]);
+					icp.setMaxCorrespondenceDistance(0.05);
+					ColorCloud c;
+					icp.align (c);
+//					cerr << "\rhas converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore();
+					alignments[i] = icp.getFinalTransformation();
+
+				}
+
+				cycle = 0;
+
+			} else if(cycle < LocalConfig::updateFrequency) {
+				++cycle;
+			}
+
+			//transform and combine clouds
 			for(int i=1; i<nCameras; ++i) {
-				*m_clouds[index] += *m_clouds[i];
+				ColorCloud t;
+				pcl::transformPointCloud(*m_clouds[i], t, alignments[i]);
+				*m_clouds[index] += t;
 			}
 
 			vector<int> indices;
 			pcl::removeNaNFromPointCloud(*m_clouds[index], *m_clouds[index], indices);
 
-			if(LocalConfig::isKinect2) m_clouds[index] = removeOutliers(m_clouds[index], LocalConfig::deviations, LocalConfig::kSamples);
+			//run extra filters
 			m_clouds[index] = downsampleCloud(m_clouds[index], LocalConfig::downsampleAmount);
-			if(!LocalConfig::usingMultipleKinects) m_clouds[index] = clusterFilter(m_clouds[index], LocalConfig::clusterTolerance, LocalConfig::clusterMinSize);
+			if(LocalConfig::removeOutliers) m_clouds[index] = removeOutliers(m_clouds[index], LocalConfig::deviations, LocalConfig::kSamples);
+//			if(!LocalConfig::usingMultipleKinects) m_clouds[index] = clusterFilter(m_clouds[index], LocalConfig::clusterTolerance, LocalConfig::clusterMinSize);
 
+			//translate cloud in z direction
+			if(LocalConfig::translateCloud) {
+				for(int i=0; i<m_clouds[index]->size(); ++i) {
+					m_clouds[index]->at(i).z += LocalConfig::zOffset;
+				}
+			}
+
+			//transform combined point cloud back to the first kinect's reference frame
 			pcl::transformPointCloud(*m_clouds[index], *m_clouds[index], inverseTransform);
 
-
+			//publish color image, depth image, and point cloud
 			cvtColor(color, color, CV_BGR2BGRA);
 			vector<Mat> channels;
 			split(color, channels);
@@ -278,7 +299,6 @@ public:
 			image_msg.header = input->header;
 			image_msg.encoding = sensor_msgs::image_encodings::TYPE_8UC4;
 			image_msg.image = color;
-
 
 			cv_bridge::CvImage depth_msg;
 			depth_msg.header = input->header;
@@ -314,21 +334,12 @@ public:
 			m_subs.push_back(nh.subscribe<sensor_msgs::PointCloud2>(LocalConfig::cameraTopics[i], 1, boost::bind(&PreprocessorSegmentationNode::cloudCB, this, _1, LocalConfig::cameraTopics[i])));
 			ColorCloudPtr x(new ColorCloud);
 			m_clouds.push_back(x);
-			m_transforms_init.push_back(false);
-			m_backgrounds_init.push_back(false);
-			Mat empty;
-			m_backgrounds.push_back(empty);
-			transforms.reserve(nCameras);
-			scales.resize(nCameras, std::vector<float>(2, 1));
+
 			if(LocalConfig::isKinect2) {
 				LocalConfig::maskSize = 100;
 				LocalConfig::clusterTolerance = 0.1;
 				LocalConfig::clusterMinSize = 200;
 				LocalConfig::lowThreshold = 0.006;
-				LocalConfig::method = 1;
-			}
-			if(LocalConfig::usingMultipleKinects) {
-				LocalConfig::useBackgroundMask = false;
 				LocalConfig::method = 1;
 			}
 		}
@@ -351,6 +362,10 @@ int main(int argc, char* argv[]) {
 	ros::init(argc, argv, "preprocessor");
 	ros::NodeHandle nh(LocalConfig::nodeNS);
 
+	transforms.reserve(nCameras);
+	scales.reserve(nCameras);
+	alignments.reserve(nCameras);
+	transforms_init.assign(nCameras, false);
 
 	PreprocessorSegmentationNode tp(nh);
 	tp.init(nh);
