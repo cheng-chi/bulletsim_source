@@ -128,33 +128,7 @@ int main(int argc, char* argv[]) {
 			pcl::fromROSMsg(*msg_in, *cloud_in);
 
 			if(LocalConfig::filterCloud) {
-				ROS_INFO("Filtering cloud, might take a while");
-				cv::Mat color = toCVMatImage(cloud_in);
-				cv::Mat mask = colorSpaceMask(color, 30, 120, 30, 120, 30, 120, CV_BGR2RGB);
-				mask |= colorSpaceMask(color, 200, 255, 200, 255, 200, 255, CV_BGR2RGB);
-
-				cv::dilate(mask, mask, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2, 2)));
-				cv::erode(mask, mask, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(15, 15)));
-				cv::dilate(mask, mask, cv::getStructuringElement(cv::MORPH_RECT, cv::Size(60, 60)));
-
-				for (int k=0; k<cloud_in->height; ++k) {
-					for (int j=0; j<cloud_in->width; ++j) {
-						if (mask.at<uint8_t>(k,j) == 0) {
-							cloud_in->at(cloud_in->width*k+j).x = BAD_POINT;
-							cloud_in->at(cloud_in->width*k+j).y = BAD_POINT;
-							cloud_in->at(cloud_in->width*k+j).z = BAD_POINT;
-							cloud_in->at(cloud_in->width*k+j).r = 0;
-							cloud_in->at(cloud_in->width*k+j).g = 0;
-							cloud_in->at(cloud_in->width*k+j).b = 0;
-						}
-					}
-				}
-
-				pcl::MedianFilter<ColorPoint> med;
-				med.setInputCloud(cloud_in);
-				med.setWindowSize(50);
-				med.setMaxAllowedMovement(0.5);
-				med.applyFilter(*cloud_in);
+				cloud_in = filterCloud(cloud_in);
 			}
 
 			int found_corners = getChessBoardPose(cloud_in, LocalConfig::chessBoardWidth, LocalConfig::chessBoardHeight, LocalConfig::squareSize, transforms[i]);

@@ -88,11 +88,11 @@ float LocalConfig::downsampleAmount = 0.007;
 float LocalConfig::clusterTolerance = 0.05;
 int LocalConfig::clusterMinSize = 30;
 int LocalConfig::maskSize = 21;
-float LocalConfig::lowThreshold = 0.008;
+float LocalConfig::lowThreshold = 0.01;
 float LocalConfig::highThreshold = 0.03;
 int LocalConfig::method = 1;
 bool LocalConfig::isKinect2 = false;
-float LocalConfig::zOffset = -0.12;
+float LocalConfig::zOffset = 0.0;
 bool LocalConfig::translateCloud = false;
 bool LocalConfig::removeOutliers = false;
 int LocalConfig::updateFrequency = 30;
@@ -317,6 +317,7 @@ public:
 		int key = waitKey(1);
 	}
 
+	//gets red color
 	Mat createColorMask(Mat color) {
 		Mat red = colorSpaceMask(color, 0, 255, 160, 255, 0, 255, CV_BGR2Lab);
 		erode(red, red, getStructuringElement(MORPH_ELLIPSE, cv::Size(2, 2)));
@@ -324,6 +325,7 @@ public:
 		return red;
 	}
 
+	//gets green color
 	Mat createBackgroundMask(Mat color) {
 		Mat green = colorSpaceMask(color, 50, 100, 0, 255, 0, 255, CV_BGR2HSV);
 		return green;
@@ -336,8 +338,8 @@ public:
 			m_clouds.push_back(x);
 
 			if(LocalConfig::isKinect2) {
-				LocalConfig::maskSize = 100;
-				LocalConfig::clusterTolerance = 0.1;
+				LocalConfig::maskSize = 40;
+				LocalConfig::clusterTolerance = 0.15;
 				LocalConfig::clusterMinSize = 200;
 				LocalConfig::lowThreshold = 0.006;
 				LocalConfig::method = 1;
