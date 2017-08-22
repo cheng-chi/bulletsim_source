@@ -163,6 +163,10 @@ cd $BULLETSIM_SOURCE_DIR
 ### 5. Import the Release and Debug projects to Eclipse, then compile
 reference: http://www.cnblogs.com/cv-pr/p/4871546.html
 
+If compiling failed [Fatal error: gl/glut.h: no such file or directory], then install freeglut3 package
+```Bash
+sudo apt-get install freeglut3-dev
+```
 
 
 ## III. Test Tracking
