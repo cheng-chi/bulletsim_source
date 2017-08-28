@@ -614,12 +614,22 @@ ColorCloudPtr chessBoardCorners(const ColorCloudPtr in, int width_cb, int height
 	for (int i=0; i<height_cb; i++)
 		for (int j=0; j<width_cb; j++)
 			obj[i*width_cb+j] = cv::Point3f(j, i, 0.0);
-	bool found = findChessboardCorners(gray_image, cv::Size(width_cb,height_cb), corners); //, cv::CALIB_CB_FAST_CHECK);
-	//printf("corners size %d\n", (int) corners.size());
-	//	if (found) {
-	//		drawChessboardCorners(image, cv::Size(width_cb,height_cb), corners, found);
-	//		imshow("win", image);
-	//	}
+	bool found = findChessboardCorners(gray_image, cv::Size(width_cb,height_cb), corners);
+	//, cv::CALIB_CB_FAST_CHECK);
+	//, cv::CALIB_CB_ADAPTIVE_THRESH + cv::CALIB_CB_NORMALIZE_IMAGE + cv::CALIB_CB_FILTER_QUADS
+
+
+	//imshow("image", image);
+	//imshow("gray_image", gray_image);
+	//cv::waitKey(0);
+
+    printf("corners size %d\n", (int) corners.size());
+//  if (found) {
+//		drawChessboardCorners(image, cv::Size(width_cb,height_cb), corners, found);
+//		imshow("win", image);
+//	}
+
+
 
 	boost::shared_ptr< vector<int> > indicesPtr(new vector<int>());
 	for (int k=0; k<corners.size(); k++) {

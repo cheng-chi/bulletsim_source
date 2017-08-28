@@ -58,9 +58,9 @@ struct LocalConfig : Config {
 
 std::vector<std::string> LocalConfig::cameraTopics = boost::assign::list_of("/kinect1/depth_registered/points");//("/kinect2/depth_registered/points");
 int LocalConfig::calibrationType = 0;
-float LocalConfig::squareSize = 0.0245;
-int LocalConfig::chessBoardWidth = 6;
-int LocalConfig::chessBoardHeight = 9;
+float LocalConfig::squareSize = 0.0395;
+int LocalConfig::chessBoardWidth = 4;
+int LocalConfig::chessBoardHeight = 5;
 bool LocalConfig::filterCloud = false;
 int LocalConfig::chessboardPositions = 2;
 

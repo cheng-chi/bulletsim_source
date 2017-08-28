@@ -50,6 +50,7 @@ struct LocalConfig: Config {
 	static float highThreshold;
 	static int method;
 	static bool isKinect2;
+	static bool enableScale;
 	static float zOffset;
 	static bool translateCloud;
 	static bool removeOutliers;
@@ -71,6 +72,7 @@ struct LocalConfig: Config {
 			params.push_back(new Parameter<float> ("highThreshold", &highThreshold, "high threshold"));
 			params.push_back(new Parameter<int> ("method", &method, "which segmentation method to use: 0=remove all points below threshold, 1=remove points below threshold only around lifted sections of rope"));
 			params.push_back(new Parameter<bool> ("isKinect2", &isKinect2, "use kinect v2 parameters"));
+			params.push_back(new Parameter<bool> ("enableScale", &enableScale, "whether scale the 2nd camera"));
 			params.push_back(new Parameter<float> ("zOffset", &zOffset, "how high off the table the rope is (should be negative), needs to be set in order for shadow removal to work correctly"));
 			params.push_back(new Parameter<bool> ("translateCloud", &translateCloud, "Whether of not to apply the z offset to the point cloud"));
 			params.push_back(new Parameter<bool> ("removeOutliers", &removeOutliers, "run statistical outlier removal filter (slow)"));
@@ -92,10 +94,16 @@ float LocalConfig::lowThreshold = 0.01;
 float LocalConfig::highThreshold = 0.03;
 int LocalConfig::method = 1;
 bool LocalConfig::isKinect2 = false;
+bool LocalConfig::enableScale = false;
 float LocalConfig::zOffset = 0.0;
 bool LocalConfig::translateCloud = false;
 bool LocalConfig::removeOutliers = false;
 int LocalConfig::updateFrequency = 30;
+
+
+
+float regionRange[6] = {-0.4, 0.4, -0.7, 0.7, -0.05, 0.3};   //"world space region for feasible points {xmin, xmax, ymin, ymax, zmin, zmax}"
+
 
 
 
@@ -162,19 +170,47 @@ public:
 			loadTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + input->header.frame_id + ".tf", transforms[index]);
 			alignments[index] = Eigen::Matrix4f::Identity();
 
-			if(index == 0) {
+			if(index == 0 ) {
 				inverseTransform = Eigen::Matrix4f(transforms[index].inverse());
 				scales[index] = Eigen::Matrix4f::Identity();
 			} else {
-				loadTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + input->header.frame_id + ".sc", scales[index]);
+				if (LocalConfig::enableScale){
+					loadTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + input->header.frame_id + ".sc", scales[index]);
+				} else {
+					scales[index] = Eigen::Matrix4f::Identity();
+				}
 			}
-
 			transforms_init[index] = true;
 		}
 
 		//transform all clouds to ground frame
 		pcl::transformPointCloud(*m_clouds[index], *m_clouds[index], transforms[index]);
 		pcl::transformPointCloud(*m_clouds[index], *m_clouds[index], scales[index]);
+
+		// regionMask
+		for (int i=0; i<m_clouds[index]->height; ++i) {
+			for (int j=0; j<m_clouds[index]->width; ++j) {
+				if (colorMask.at<uint8_t>(i,j) != 0) {
+					if (   m_clouds[index]->at(m_clouds[index]->width*i+j).x < regionRange[0]
+						|| m_clouds[index]->at(m_clouds[index]->width*i+j).x > regionRange[1]
+						|| m_clouds[index]->at(m_clouds[index]->width*i+j).y < regionRange[2]
+						|| m_clouds[index]->at(m_clouds[index]->width*i+j).y > regionRange[3]
+						|| m_clouds[index]->at(m_clouds[index]->width*i+j).z < regionRange[4]
+						|| m_clouds[index]->at(m_clouds[index]->width*i+j).z > regionRange[5])
+					{
+						m_clouds[index]->at(m_clouds[index]->width*i+j).x =  BAD_POINT;
+						m_clouds[index]->at(m_clouds[index]->width*i+j).y =  BAD_POINT;
+						m_clouds[index]->at(m_clouds[index]->width*i+j).z =  BAD_POINT;
+						m_clouds[index]->at(m_clouds[index]->width*i+j).r = 0;
+						m_clouds[index]->at(m_clouds[index]->width*i+j).g = 0;
+						m_clouds[index]->at(m_clouds[index]->width*i+j).b = 0;
+					}
+				}
+			}
+		}
+
+
+
 
 		//create height map
 		Mat heightMap(depth.size(), CV_32FC1);
@@ -192,14 +228,14 @@ public:
 		if(LocalConfig::method == 1) {
 			Mat high = heightMap > LocalConfig::highThreshold;
 			if(LocalConfig::isKinect2) {
-				erode(high, high, getStructuringElement(MORPH_RECT, cv::Size(3, 3)));
+				//////////// erode(high, high, getStructuringElement(MORPH_RECT, cv::Size(3, 3)));
 			}
 			dilate(high, high, getStructuringElement(MORPH_RECT, cv::Size(LocalConfig::maskSize, LocalConfig::maskSize)));
 			low &= high;
 		}
 
 		colorMask &= (low == 0);
-		if(!LocalConfig::removeOutliers) erode(colorMask, colorMask, getStructuringElement(MORPH_RECT, cv::Size(3, 3)));
+		////////// if(!LocalConfig::removeOutliers) erode(colorMask, colorMask, getStructuringElement(MORPH_RECT, cv::Size(3, 3)));
 
 		for (int i=0; i<m_clouds[index]->height; ++i) {
 			for (int j=0; j<m_clouds[index]->width; ++j) {
@@ -317,12 +353,13 @@ public:
 		int key = waitKey(1);
 	}
 
-	//gets red color
+	//gets target color
 	Mat createColorMask(Mat color) {
-		Mat red = colorSpaceMask(color, 0, 255, 160, 255, 0, 255, CV_BGR2Lab);
-		erode(red, red, getStructuringElement(MORPH_ELLIPSE, cv::Size(2, 2)));
-		dilate(red, red, getStructuringElement(MORPH_ELLIPSE, cv::Size(2, 2)));
-		return red;
+		//Mat targetColor = colorSpaceMask(color, 0, 255, 160, 255, 0, 255, CV_BGR2Lab);     // red
+		Mat targetColor = colorSpaceMask(color, 0, 255, 0, 255, 75, 102, CV_BGR2Lab);     // Kinect V2 + blue cable + testbed
+		erode(targetColor, targetColor, getStructuringElement(MORPH_ELLIPSE, cv::Size(1, 1)));
+	    dilate(targetColor, targetColor, getStructuringElement(MORPH_ELLIPSE, cv::Size(1, 1)));
+		return targetColor;
 	}
 
 	//gets green color

@@ -55,9 +55,9 @@ struct LocalConfig : Config {
 
 std::vector<std::string> LocalConfig::cameraTopics = boost::assign::list_of("/kinect1/depth_registered/points");//("/kinect2/depth_registered/points");
 int LocalConfig::calibrationType = 0;
-float LocalConfig::squareSize = 0.0245;
-int LocalConfig::chessBoardWidth = 6;
-int LocalConfig::chessBoardHeight = 9;
+float LocalConfig::squareSize = 0.0395;
+int LocalConfig::chessBoardWidth = 4;
+int LocalConfig::chessBoardHeight = 5;
 bool LocalConfig::saveTransform = true;
 bool LocalConfig::filterCloud = false;
 
@@ -121,8 +121,15 @@ int main(int argc, char* argv[]) {
 	// SVD calibration
 	case 1:
 		for (int i=0; i<nCameras; i++) {
+			sensor_msgs::PointCloud2ConstPtr msg_in;
 
-			sensor_msgs::PointCloud2ConstPtr msg_in = ros::topic::waitForMessage<sensor_msgs::PointCloud2>(LocalConfig::cameraTopics[i], nh);
+			// repeat 3 times, in case the kinect is not prepared well and produce empty msgs for the first time
+			int n = 0;
+			while (n<3) {
+				msg_in = ros::topic::waitForMessage<sensor_msgs::PointCloud2>(LocalConfig::cameraTopics[i], nh);
+				n++;
+			}
+
 			frameName.push_back(msg_in->header.frame_id);
 			ColorCloudPtr cloud_in(new ColorCloud());
 			pcl::fromROSMsg(*msg_in, *cloud_in);
