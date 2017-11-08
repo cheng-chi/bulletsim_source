@@ -118,17 +118,58 @@ Eigen::MatrixXf PhysicsTracker::CPDupdate() {
 
 	cpd::Nonrigid Nonrigid;
 	Nonrigid.normalize(true);
-	Nonrigid.beta(2.0);
-	Nonrigid.lambda(3.0);
-	Nonrigid.tolerance(1e-4);
+	Nonrigid.beta(1.5);   //2.0
+    Nonrigid.lambda(3.0); //3.0
+	Nonrigid.tolerance(1e-5);  //1e-4
 	Nonrigid.linked(true);
 	Nonrigid.outliers(0.1);
+	Nonrigid.sigma2(0.08);   //0.1
 //	std::unique_ptr<cpd::GaussTransformFgt> fgt(new cpd::GaussTransformFgt());
 //	fgt->method(cpd::FgtMethod::DirectTree);
 //	Nonrigid.gauss_transform(std::move(fgt));
 
 	cpd::NonrigidResult result = Nonrigid.run(pointCld, simCld);
 	m_estPts_next_CPD = result.points.cast <float> ();
+
+	Eigen::MatrixXf old_m_estPts_next_CPD = m_estPts_next_CPD;
+//uniform distribute along path
+	cout << m_estPts_next_CPD.rows() << endl;
+	int total_index = m_estPts_next_CPD.rows();
+	float total_length=0.0;
+	Eigen::MatrixXf i_length = m_estPts_next_CPD;
+
+	for (int i=0; i<(total_index-1); i++) {
+		i_length(i,0)  = sqrt((m_estPts_next_CPD(i+1,0)-m_estPts_next_CPD(i,0))*(m_estPts_next_CPD(i+1,0)-m_estPts_next_CPD(i,0)) + (m_estPts_next_CPD(i+1,1)-m_estPts_next_CPD(i,1))*(m_estPts_next_CPD(i+1,1)-m_estPts_next_CPD(i,1)) + (m_estPts_next_CPD(i+1,2)-m_estPts_next_CPD(i,2))*(m_estPts_next_CPD(i+1,2)-m_estPts_next_CPD(i,2)));
+		total_length = total_length + i_length(i,0) ;
+		cout << i_length(i,0) << " ";
+
+
+	}
+	cout << total_length << endl;
+	float average_length = total_length/(total_index-1);
+	cout << average_length << endl;
+
+	int j = 0;
+	float remain_length=0.0;
+	for (int i=0; i<(total_index-2); i++) {
+		while (remain_length < average_length){
+			remain_length = remain_length + i_length(j,0) ;
+			j = j+1;
+		}
+		remain_length = remain_length - average_length;
+		cout << remain_length << " ";
+
+		m_estPts_next_CPD(i+1,0) = old_m_estPts_next_CPD(j,0) + remain_length/i_length(j-1,0) * (old_m_estPts_next_CPD(j-1,0) - old_m_estPts_next_CPD(j,0));
+		m_estPts_next_CPD(i+1,1) = old_m_estPts_next_CPD(j,1) + remain_length/i_length(j-1,0) * (old_m_estPts_next_CPD(j-1,1) - old_m_estPts_next_CPD(j,1));
+		m_estPts_next_CPD(i+1,2) = old_m_estPts_next_CPD(j,2) + remain_length/i_length(j-1,0) * (old_m_estPts_next_CPD(j-1,2) - old_m_estPts_next_CPD(j,2));
+
+		float length_estPts1 = sqrt((m_estPts_next_CPD(i+1,0)-m_estPts_next_CPD(i,0))*(m_estPts_next_CPD(i+1,0)-m_estPts_next_CPD(i,0)) + (m_estPts_next_CPD(i+1,1)-m_estPts_next_CPD(i,1))*(m_estPts_next_CPD(i+1,1)-m_estPts_next_CPD(i,1)) + (m_estPts_next_CPD(i+1,2)-m_estPts_next_CPD(i,2))*(m_estPts_next_CPD(i+1,2)-m_estPts_next_CPD(i,2)));
+
+    }
+	cout << remain_length << endl;
+
+
+	cout << "next" << endl;
 	return m_estPts_next_CPD;
 	//m_objFeatures->m_obj->CPDapplyEvidence(toBulletVectors(result.points.cast <float> ()));
 
