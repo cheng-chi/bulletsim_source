@@ -10,9 +10,9 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <geometry_msgs/Point32.h>
 
-static const float cx = 256-.5;
-static const float cy = 212-.5;
-static const float f = 1052.0/1080*424 - 27;
+static const float cx = 320-.5;//256-.5
+static const float cy = 240-.5;//212-.5
+static const float f = 525;//1052.0/1080*424 - 27;
 
 typedef Eigen::Matrix<bool,Eigen::Dynamic,1> VectorXb;
 typedef Eigen::Matrix<uint8_t,Eigen::Dynamic,Eigen::Dynamic> MatrixXu;
