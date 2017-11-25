@@ -40,7 +40,7 @@ public:
 	void updateFeatures();
 	void expectationStep();
 	void maximizationStep(bool apply_evidence=true);
-	Eigen::MatrixXf CPDupdate();
+	Eigen::MatrixXf CPDupdate(TrackedObject::Ptr);
 };
 
 

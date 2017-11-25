@@ -100,7 +100,7 @@ void TrackedSponge::CPDapplyEvidence(const vector<btVector3>& estPos_next){
 
 	vector<btVector3> nodeImpulses(K);
 	for (int k=0; k<K; k++) {
-		btVector3 dv = -TrackingConfig::kp_cloth * estVel[k] + TrackingConfig::kd_cloth * (estPos_next[k] - estPos[k]);
+		btVector3 dv = -TrackingConfig::kd_cloth * estVel[k] + TrackingConfig::kp_cloth * (estPos_next[k] - estPos[k]);
 		nodeImpulses[k] = masses[k]*dv;
 	}
 

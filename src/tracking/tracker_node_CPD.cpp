@@ -209,7 +209,7 @@ int main(int argc, char* argv[]) {
 		//	visInterface->visibilities[i]->updateInput(depth_images[i]);
 
 		alg->updateFeatures();
-		Eigen::MatrixXf estPos_next = alg->CPDupdate();
+		Eigen::MatrixXf estPos_next = alg->CPDupdate(trackedObj);
 
 		pending = false;
 

@@ -111,7 +111,7 @@ void PhysicsTracker::maximizationStep(bool apply_evidence) {
 
 
 
-Eigen::MatrixXf PhysicsTracker::CPDupdate() {
+Eigen::MatrixXf PhysicsTracker::CPDupdate(TrackedObject::Ptr obj) {
 
 	Eigen::MatrixXd pointCld = m_obsPts.cast <double> ();
 	Eigen::MatrixXd simCld = m_estPts.cast <double> ();
@@ -120,7 +120,7 @@ Eigen::MatrixXf PhysicsTracker::CPDupdate() {
 	Nonrigid.normalize(true);
 	Nonrigid.beta(1.5);   //2.0
     Nonrigid.lambda(3.0); //3.0
-	Nonrigid.tolerance(1e-5);  //1e-4
+	Nonrigid.tolerance(1e-3);  //1e-5 for rope, for cloth should be 1e-2
 	Nonrigid.linked(true);
 	Nonrigid.outliers(0.1);
 	Nonrigid.sigma2(0.08);   //0.1
@@ -131,8 +131,9 @@ Eigen::MatrixXf PhysicsTracker::CPDupdate() {
 	cpd::NonrigidResult result = Nonrigid.run(pointCld, simCld);
 	m_estPts_next_CPD = result.points.cast <float> ();
 
+	//uniform distribution along path, if this is a rope - WR
+	if (obj->m_type == "rope"){
 	Eigen::MatrixXf old_m_estPts_next_CPD = m_estPts_next_CPD;
-//uniform distribute along path
 	cout << m_estPts_next_CPD.rows() << endl;
 	int total_index = m_estPts_next_CPD.rows();
 	float total_length=0.0;
@@ -170,6 +171,7 @@ Eigen::MatrixXf PhysicsTracker::CPDupdate() {
 
 
 	cout << "next" << endl;
+	} // above: uniform length for rope
 	return m_estPts_next_CPD;
 	//m_objFeatures->m_obj->CPDapplyEvidence(toBulletVectors(result.points.cast <float> ()));
 
