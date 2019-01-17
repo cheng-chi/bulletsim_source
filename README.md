@@ -1,6 +1,10 @@
 # bulletsim_source
 Code for tracking deformable objects by stereo cameras
 
+Tang, Te, Yongxiang Fan, Hsien-Chung Lin, and Masayoshi Tomizuka. "State estimation for deformable objects by point registration and dynamic simulation." In Intelligent Robots and Systems (IROS), 2017 IEEE/RSJ International Conference on, pp. 2427-2433. IEEE, 2017.
+
+Tang, Te, Changhao Wang, and Masayoshi Tomizuka. "A framework for manipulating deformable linear objects by coherent point drift." IEEE Robotics and Automation Letters 3, no. 4 (2018): 3426-3433.
+
 ## I. Dependency Installation
 
 ### 1. Install Ubuntu 14.04 LTS 
