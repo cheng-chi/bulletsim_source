@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 2.6)
 
 project(bulletsim)
 
+set(CUDA_USE_STATIC_CUDA_RUNTIME OFF)
 set(BULLETSIM_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 if (NOT CMAKE_BUILD_TYPE)
@@ -22,9 +23,10 @@ find_package(osgViewer REQUIRED)
 set(OSG_LIBS ${OPENTHREADS_LIBRARY} ${OSG_LIBRARY} ${OSGDB_LIBRARY} ${OSGGA_LIBRARY} ${OSGTEXT_LIBRARY} ${OSGUTIL_LIBRARY} ${OSGVIEWER_LIBRARY})
 set(OSG_INCLUDE_DIRS ${OPENTHREADS_LIBRARY_INCLUDE_DIR} ${OSG_LIBRARY_INCLUDE_DIR} ${OSGDB_LIBRARY_INCLUDE_DIR} ${OSGGA_LIBRARY_INCLUDE_DIR} ${OSGTEXT_LIBRARY_INCLUDE_DIR} ${OSGUTIL_LIBRARY_INCLUDE_DIR} ${OSGVIEWER_LIBRARY_INCLUDE_DIR})
 find_package(PCL REQUIRED)
-find_package(OpenCV REQUIRED)
+find_package(OpenCV 2.4 REQUIRED)
+message(${OpenCV_INCLUDE_DIRS})
 
-set(ROS_ROOT_DIR /opt/ros/indigo)
+set(ROS_ROOT_DIR /opt/ros/kinetic)
 find_package(catkin REQUIRED COMPONENTS
  sensor_msgs geometry_msgs std_msgs roscpp rosconsole message_filters cpp_common rostime roscpp_traits roscpp_serialization
  bulletsim_msgs
@@ -39,6 +41,8 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 #///set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native -mno-avx")
+
+#set(CMAKE_VERBOSE_MAKEFILE ON)
 
 
 # directories for libraries packaged in this tree

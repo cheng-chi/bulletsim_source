@@ -1,4 +1,4 @@
-include_directories( ${PCL_INCLUDE_DIRS} )
+include_directories( ${PCL_INCLUDE_DIRS} ${ROS_ROOT_DIR}/include)
 
 add_library(utils config.cpp vector_io.cpp utils_vector.cpp testing.cpp yes_or_no.cpp interpolation.cpp logging.cpp conversions.cpp cvmat.cpp clock.cpp file.cpp)
 target_link_libraries(utils ${LOG4CPLUS_LIBRARY} ${Boost_LIBRARIES} ${BULLET_LIBS} ${OpenCV_LIBS})

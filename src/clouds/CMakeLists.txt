@@ -6,6 +6,7 @@ include_directories(
   ${BULLETSIM_SOURCE_DIR}/src
   ${BULLET_DIR}/src
   ${ROS_ROOT_DIR}/include
+  /home/chicheng/ARMLab/cpd_ws/devel/include
 )
 
 link_directories(
