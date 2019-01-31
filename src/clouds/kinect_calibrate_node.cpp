@@ -53,7 +53,7 @@ struct LocalConfig : Config {
 	}
 };
 
-std::vector<std::string> LocalConfig::cameraTopics = boost::assign::list_of("/kinect1/depth_registered/points");//("/kinect2/depth_registered/points");
+std::vector<std::string> LocalConfig::cameraTopics = boost::assign::list_of("/kinect1/qhd/points");//("/kinect2/depth_registered/points");
 int LocalConfig::calibrationType = 0;
 float LocalConfig::squareSize = 0.0245;
 int LocalConfig::chessBoardWidth = 6;
@@ -108,7 +108,7 @@ int main(int argc, char* argv[]) {
 	// Load from file calibration
 	case 0:
 		for (int i=0; i<nCameras; i++) {
-
+			std::cout << LocalConfig::cameraTopics[i] << std::endl;
 			sensor_msgs::PointCloud2ConstPtr msg_in = ros::topic::waitForMessage<sensor_msgs::PointCloud2>(LocalConfig::cameraTopics[i], nh);
 			frameName.push_back(msg_in->header.frame_id);
 			if (loadTransform(string(getenv("BULLETSIM_SOURCE_DIR")) + "/data/transforms/" + msg_in->header.frame_id + ".tf", transforms[i])) {
@@ -154,11 +154,12 @@ int main(int argc, char* argv[]) {
 	listener.reset(new tf::TransformListener());
 
 	ros::Rate rate(30);
-	ROS_INFO("Publish /ground transforms to topic /tf");
+	ROS_WARN("Publish /ground transforms to topic /tf");
 
 	while (nh.ok()){
 		try {
 			for (int i=0; i<nCameras; i++) {
+				std::cout << frameName[i] << std::endl;
 				broadcastKinectTransform(toBulletTransform((Affine3f) transforms[i]), frameName[i], "/ground", *broadcaster, *listener);
 			}
 			rate.sleep();

@@ -74,7 +74,8 @@ void callback(const vector<sensor_msgs::PointCloud2ConstPtr>& cloud_msg, const v
 		if (i==0) *filteredCloud = *cloud;
 		else *filteredCloud = *filteredCloud + *cloud;
 
-		extractImageAndMask(cv_bridge::toCvCopy(image_msgs[2*i])->image, rgb_images[i], mask_images[i]);
+        boost::shared_ptr<cv_bridge::CvImage> debug_image_ptr = cv_bridge::toCvCopy(image_msgs[2*i], "rgba8");
+		extractImageAndMask(debug_image_ptr->image, rgb_images[i], mask_images[i]);
 		depth_images[i] = cv_bridge::toCvCopy(image_msgs[2*i+1])->image;
 	}
 
@@ -111,8 +112,10 @@ int main(int argc, char* argv[]) {
 
 	listener = new tf::TransformListener();
 
-	for (int i=0; i<nCameras; i++)
+	for (int i=0; i<nCameras; i++){
+		std::cout << TrackingConfig::cameraTopics[i] << std::endl;
 		transformers.push_back(new CoordinateTransformer(waitForAndGetTransform(*listener, "/ground", TrackingConfig::cameraTopics[i]+"_rgb_optical_frame")));
+	}
 
 	vector<string> cloud_topics;
 	vector<string> image_topics;

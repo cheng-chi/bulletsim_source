@@ -1,4 +1,4 @@
-#include "clouds/get_chessboard_pose.h"
+#include <clouds/get_chessboard_pose.h>
 
 using namespace cv;
 using namespace Eigen;
@@ -8,8 +8,8 @@ bool get_chessboard_pose(Mat& image, int width_cb, int height_cb, double size, c
 	Mat gray_image;
 	cvtColor(image, gray_image, CV_BGR2GRAY);
 
-	vector<Point2f> corners;
-	vector<Point3f> obj(width_cb*height_cb);
+	std::vector<Point2f> corners;
+	std::vector<Point3f> obj(width_cb*height_cb);
 	for (int i=0; i<height_cb; i++) {
 		for (int j=0; j<width_cb; j++) {
 			float x = (j - ((float) width_cb - 1.0)/2.0);

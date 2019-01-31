@@ -57,7 +57,7 @@ int  icvIntersectLines( double x1, double dx1, double y1, double dy1,
                         double* t2 );
 
 
-void icvCreateCenterNormalLine( CvSubdiv2DEdge edge, double* a, double* b, double* c );
+//void icvCreateCenterNormalLine( CvSubdiv2DEdge edge, double* a, double* b, double* c );
 
 void icvIntersectLines3( double* a0, double* b0, double* c0,
                          double* a1, double* b1, double* c1,

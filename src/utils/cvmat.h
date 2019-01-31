@@ -4,6 +4,8 @@
 //////////////////  #include <cv.h>
 #include <opencv/cv.h>
 #include <opencv2/core/core.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/calib3d.hpp>
 #include <vector>
 
 //the rows of features are the vectors of the data set to be compressed.

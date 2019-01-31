@@ -2,7 +2,9 @@
 //////////////////#include <cv.h>
 #include <opencv/cv.h>
 /////////#include <highgui.h>
-#include <opencv/highgui.h>
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/calib3d.hpp>
 #include <Eigen/Geometry>
 
 //the transform brings points from the camera coordinate system to the reference (center of chess board) coordinate system

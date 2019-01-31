@@ -4,7 +4,8 @@
 #include <geometry_msgs/PolygonStamped.h>
 #include <geometry_msgs/Point.h>
 #include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
 #include <pcl/ros/conversions.h>
 #include "clouds/pcl_typedefs.h"
 #include "utils/config.h"

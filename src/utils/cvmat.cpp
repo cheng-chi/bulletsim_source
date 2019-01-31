@@ -158,7 +158,7 @@ cv::Mat toCVMatImage(const MatrixXf& m, int rows, int cols) {
 MatrixXf colorTransform(const MatrixXf& m, int type) {
 	assert(m.cols() == 3);
 	cv::Mat image = toCVMatImage(m);
-	cvtColor(image, image, type);
+	cv::cvtColor(image, image, type);
 	return toEigenMatrixImage(image);
 }
 

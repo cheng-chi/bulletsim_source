@@ -7,7 +7,9 @@
 #include <boost/foreach.hpp>
 #include <boost/static_assert.hpp>
 #include "clouds/utils_pcl.h"
-#include "opencv2/nonfree/nonfree.hpp"
+//#include "opencv2/nonfree/nonfree.hpp"
+#include "opencv2/xfeatures2d.hpp"
+#include "opencv2/features2d.hpp"
 #include <opencv2/imgproc/imgproc.hpp>
 #include <algorithm>
 #include "utils/utils_vector.h"
@@ -114,7 +116,7 @@ Eigen::MatrixXf CloudFeatureExtractor::computeFeature(FeatureType fType) {
 		cv::cvtColor(cvmat, cvmat, CV_BGR2Lab);
 		Map<MatrixXu> lab(cvmat.data, m_cloud->size(), 3);
 		feature = lab.cast<float> () / 255.;
-	} else if (fType == FT_SURF) {
+	} /* else if (fType == FT_SURF) {
 		feature.resize(m_cloud->size(), FT_SIZES[FT_SURF]);
 		MatrixXf ptsCam = toEigenMatrix(m_transformer->toCamFromWorldN(toBulletVectors(m_cloud)));
 		MatrixXi uvs = xyz2uv(ptsCam);
@@ -139,7 +141,7 @@ Eigen::MatrixXf CloudFeatureExtractor::computeFeature(FeatureType fType) {
 		}
 		//cv::imwrite("/home/alex/Desktop/keypoints_cloud.jpg", keypoints_image);
 
-	} else if (fType == FT_PCASURF) {
+	} */ else if (fType == FT_PCASURF) {
 		MatrixXf surf_feature = computeFeature(FT_SURF);
 		if (pca_surf.mean.empty()) {
 			cv::Mat cv_surf_feature(surf_feature.rows(), surf_feature.cols(), CV_32FC1, surf_feature.data());
@@ -183,7 +185,7 @@ Eigen::MatrixXf TrackedObjectFeatureExtractor::computeFeature(FeatureType fType)
 		feature = m_obj->getColors();
 	} else if (fType == FT_LAB) {
 		feature = colorTransform(m_obj->getColors(), CV_BGR2Lab);
-	} else if (fType == FT_SURF) {
+	} /*else if (fType == FT_SURF) {
 		feature.resize(m_obj->m_nNodes, FT_SIZES[FT_SURF]);
 		TrackedTowel* tracked_towel = dynamic_cast<TrackedTowel*> (m_obj.get());
 		cv::Mat tex_image = tracked_towel->getSim()->getTexture();
@@ -212,7 +214,7 @@ Eigen::MatrixXf TrackedObjectFeatureExtractor::computeFeature(FeatureType fType)
 		}
 		//cv::imwrite("/home/alex/Desktop/keypoints_obj.jpg", keypoints_image);
 
-	} else if (fType == FT_PCASURF) {
+	} */ else if (fType == FT_PCASURF) {
 		MatrixXf surf_feature = computeFeature(FT_SURF);
 		if (pca_surf.mean.empty()) {
 			cv::Mat cv_surf_feature(surf_feature.rows(), surf_feature.cols(), CV_32FC1, surf_feature.data());

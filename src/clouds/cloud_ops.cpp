@@ -18,9 +18,10 @@
 #include <pcl/range_image/range_image.h>
 #include <pcl/features/range_image_border_extractor.h>
 #include <pcl/registration/transformation_estimation_svd.h>
-#include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/core.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/calib3d.hpp>
 #include <limits>
 #ifndef NOT_BULLETSIM
 #include "utils_cv.h"
