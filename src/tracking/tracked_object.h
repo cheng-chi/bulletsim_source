@@ -1,4 +1,6 @@
 #pragma once
+//#define EIGEN_DONT_ALIGN_STATICALLY
+
 #include <Eigen/Dense>
 #include <simulation/basicobjects.h>
 #include <simulation/softbodies.h>

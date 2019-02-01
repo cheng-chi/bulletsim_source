@@ -1,5 +1,7 @@
 find_package(Cpd REQUIRED)
 
+#add_definitions("-DEIGEN_DONT_VECTORIZE -DEIGEN_DISABLE_UNALIGNED_ARRAY_ASSERT")
+
 include_directories(
   ${BULLETSIM_SOURCE_DIR}/src
   ${PCL_INCLUDE_DIRS}

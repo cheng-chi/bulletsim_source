@@ -59,6 +59,29 @@ bool firstCallback = true;
 
 tf::TransformListener* listener;
 
+string type2str(int type) {
+    string r;
+
+    uchar depth = type & CV_MAT_DEPTH_MASK;
+    uchar chans = 1 + (type >> CV_CN_SHIFT);
+
+    switch ( depth ) {
+        case CV_8U:  r = "8U"; break;
+        case CV_8S:  r = "8S"; break;
+        case CV_16U: r = "16U"; break;
+        case CV_16S: r = "16S"; break;
+        case CV_32S: r = "32S"; break;
+        case CV_32F: r = "32F"; break;
+        case CV_64F: r = "64F"; break;
+        default:     r = "User"; break;
+    }
+
+    r += "C";
+    r += (chans+'0');
+
+    return r;
+}
+
 void callback(const vector<sensor_msgs::PointCloud2ConstPtr>& cloud_msg, const vector<sensor_msgs::ImageConstPtr>& image_msgs) {
 	if (rgb_images.size()!=nCameras) rgb_images.resize(nCameras);
 	if (mask_images.size()!=nCameras) mask_images.resize(nCameras);
@@ -74,9 +97,23 @@ void callback(const vector<sensor_msgs::PointCloud2ConstPtr>& cloud_msg, const v
 		if (i==0) *filteredCloud = *cloud;
 		else *filteredCloud = *filteredCloud + *cloud;
 
-        boost::shared_ptr<cv_bridge::CvImage> debug_image_ptr = cv_bridge::toCvCopy(image_msgs[2*i], "rgba8");
+//        std::cout << "data length:" << image_msgs[2*i]->data.size() << std::endl;
+//        char temp;
+//        for(size_t i = 0; i < 424; i++){
+//            for(size_t j = 0; j < 512; j++){
+//                for(size_t c = 0; c < 4; c++){
+//                    temp = image_msgs[2*i]->data.at(c + 4 * j + 2048 * i);
+//                }
+//                std::cout << j << std::endl;
+//            }
+//            std::cout << i << std::endl;
+//        }
+
+		depth_images[i] = cv_bridge::toCvCopy(image_msgs[2*i])->image;
+//        std::cout << type2str(depth_images[i].type()) << depth_images[i].rows << ' ' << depth_images[i].cols << std::endl;
+        boost::shared_ptr<cv_bridge::CvImage> debug_image_ptr = cv_bridge::toCvCopy(image_msgs[2*i+1]);
 		extractImageAndMask(debug_image_ptr->image, rgb_images[i], mask_images[i]);
-		depth_images[i] = cv_bridge::toCvCopy(image_msgs[2*i+1])->image;
+
 	}
 
 	if (firstCallback) {
@@ -208,8 +245,8 @@ int main(int argc, char* argv[]) {
 	while (!exit_loop && ros::ok()) {
 		//Update the inputs of the featureExtractors and visibilities (if they have any inputs)
 		cloudFeatures->updateInputs(filteredCloud, rgb_images[0], transformers[0]);
-		//for (int i=0; i<nCameras; i++)
-		//	visInterface->visibilities[i]->updateInput(depth_images[i]);
+		for (int i=0; i<nCameras; i++)
+			visInterface->visibilities[i]->updateInput(depth_images[i]);
 
 		alg->updateFeatures();
 		Eigen::MatrixXf estPos_next = alg->CPDupdate();

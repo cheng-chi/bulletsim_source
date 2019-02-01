@@ -118,7 +118,7 @@ void synchronizeAndRegisterCallback(std::vector<std::string> cloud_topics, std::
 
   if (cloud_topics.size()==1 && image_topics.size()==2) {
   	typedef message_filters::sync_policies::ApproximateTime<PointCloud2, Image, Image> ApproxSyncPolicy;
-  	message_filters::Synchronizer<ApproxSyncPolicy>* sync = new message_filters::Synchronizer<ApproxSyncPolicy>(ApproxSyncPolicy(30), *(cloud_subs[0]), *(image_subs[0]), *(image_subs[1]));
+  	message_filters::Synchronizer<ApproxSyncPolicy>* sync = new message_filters::Synchronizer<ApproxSyncPolicy>(ApproxSyncPolicy(30), *(cloud_subs[0]), *(image_subs[1]), *(image_subs[0]));
 		sync->registerCallback(boost::bind(vectorizeArgumentsAndInvoke,_1,_2,_3,callback));
   } else if (cloud_topics.size()==2 && image_topics.size()==4) {
   	typedef message_filters::sync_policies::ApproximateTime<PointCloud2, PointCloud2, Image, Image, Image, Image> ApproxSyncPolicy;

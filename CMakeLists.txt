@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 2.6)
 
 project(bulletsim)
 
+#set(CMAKE_VERBOSE_MAKEFILE ON)
+
 set(CUDA_USE_STATIC_CUDA_RUNTIME OFF)
 set(BULLETSIM_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -25,6 +27,7 @@ set(OSG_INCLUDE_DIRS ${OPENTHREADS_LIBRARY_INCLUDE_DIR} ${OSG_LIBRARY_INCLUDE_DI
 find_package(PCL REQUIRED)
 find_package(OpenCV 3 REQUIRED)
 message(${OpenCV_INCLUDE_DIRS})
+message(${EIGEN3_INCLUDE_DIR})
 
 set(ROS_ROOT_DIR /opt/ros/kinetic)
 find_package(catkin REQUIRED COMPONENTS
