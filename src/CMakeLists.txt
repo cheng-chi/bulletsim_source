@@ -1,5 +1,7 @@
 add_definitions("-DBULLETSIM_DATA_DIR=${BULLETSIM_SOURCE_DIR}/data")
 
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 include_directories(
     ${BULLETSIM_SOURCE_DIR}/src
 
@@ -22,9 +24,9 @@ add_subdirectory(simulation)
 add_subdirectory(comm)
 add_subdirectory(clouds)
 
-if (BUILD_TRACKING)
-  add_subdirectory(tracking)
-endif (BUILD_TRACKING)
+#if (BUILD_TRACKING)
+#  add_subdirectory(tracking)
+#endif (BUILD_TRACKING)
 
 if (BUILD_TESTS)
   add_subdirectory(tests)
@@ -33,4 +35,6 @@ endif (BUILD_TESTS)
 if (BUILD_PHASESPACE)
   add_subdirectory(phasespace)
 endif (BUILD_PHASESPACE)
+
+add_subdirectory(python)
 
