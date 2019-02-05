@@ -1,31 +1,31 @@
 #include <vector>
 #include <iostream>
 #include <string.h>
-#include <pcl/ros/conversions.h>
-#include <pcl/common/transforms.h>
+//#include <pcl/ros/conversions.h>
+//#include <pcl/common/transforms.h>
 #include <pcl/point_cloud.h>
-#include <pcl/kdtree/kdtree_flann.h>
-#include <pcl/io/pcd_io.h>
-#include <ros/ros.h>
-#include <sensor_msgs/PointCloud2.h>
-#include <sensor_msgs/Image.h>
-#include <tf/tf.h>
-#include <tf/transform_listener.h>
-#include <cv_bridge/cv_bridge.h>
-#include <opencv/cv.h>
-#include <bulletsim_msgs/TrackedObject.h>
-#include <sys/timeb.h>
+//#include <pcl/kdtree/kdtree_flann.h>
+//#include <pcl/io/pcd_io.h>
+//#include <ros/ros.h>
+//#include <sensor_msgs/PointCloud2.h>
+//#include <sensor_msgs/Image.h>
+//#include <tf/tf.h>
+//#include <tf/transform_listener.h>
+//#include <cv_bridge/cv_bridge.h>
+//#include <opencv/cv.h>
+//#include <bulletsim_msgs/TrackedObject.h>
+//#include <sys/timeb.h>
 
 ////////////////////////////
-#include <pcl_conversions/pcl_conversions.h>
+//#include <pcl_conversions/pcl_conversions.h>
 #include "simulation/config_bullet.h"
 
-#include "clouds/utils_ros.h"
+//#include "clouds/utils_ros.h"
 #include "clouds/utils_pcl.h"
 #include "utils_tracking.h"
-#include "utils/logging.h"
+//#include "utils/logging.h"
 #include "utils/utils_vector.h"
-#include "visibility.h"
+//#include "visibility.h"
 #include "physics_tracker.h"
 #include "feature_extractor.h"
 #include "initialization.h"
@@ -34,70 +34,32 @@
 #include "utils/conversions.h"
 #include "clouds/cloud_ops.h"
 #include "simulation/util.h"
-#include "clouds/utils_cv.h"
-#include "simulation/recording.h"
-#include "cam_sync.h"
+//#include "clouds/utils_cv.h"
+//#include "simulation/recording.h"
+//#include "cam_sync.h"
 
-#include "simulation/config_viewer.h"
+//#include "simulation/config_viewer.h"
 
 #include <Eigen/Dense>
 
-extern "C" void print_arr(float * arr_ptr, int size){
-    for(int i = 0; i < size; i++){
-        std::cout << arr_ptr[i] << std::endl;
-    }
-    return;
-}
-
-extern "C" void print(int size){
-    std::cout << size << std::endl;
-}
-
-extern "C" void print_matrix(float * arr_ptr, int height, int width){
-    for(int i = 0; i < height; i++){
-        for(int j = 0; j < width; j++){
-            std::cout << arr_ptr[i * width + j] << ' ';
-        }
-        std::cout << std::endl;
-    }
-    return;
-}
-
-extern "C" void copy_matrix(float * dest, float * arr_ptr, int height, int width){
-    memcpy(dest, arr_ptr, sizeof(float) * height * width);
-    // for(int i = 0; i < height; i++){
-    //     for(int j = 0; j < width; j++){
-    //         dest[i * width + j] = arr_ptr[i * width + j];
-    //     }
-    // }
-}
-
-//void copy_rope(const bulletsim_msgs::ObjectInit& initMsg){
-//    vector<btVector3> nodes = toBulletVectors(initMsg.rope.nodes);
-//    BOOST_FOREACH(btVector3& node, nodes) node += btVector3(0,0,.01);
-//}
-
-extern "C" void copy_eigen(float * arr_ptr, int size){
-    Eigen::VectorXf eigen_vec = Eigen::VectorXf::Map(arr_ptr, size);
-    std::cout << eigen_vec << std::endl;
-}
-
 struct TrackerState{
     TrackerState(vector<btVector3>& nodes, btScalar radius){
-        simulation_num_iter_ = 20;
 
         Eigen::setNbThreads(2);
-//        GeneralConfig::scale = 100;
-//        BulletConfig::maxSubSteps = 0;
-//        BulletConfig::gravity = btVector3(0,0,-0.1);
+        GeneralConfig::scale = 100;
+        BulletConfig::maxSubSteps = 0;
+        BulletConfig::gravity = btVector3(0,0,-0.1);
 
+//        std::cout << nodes.size() << std::endl;
         CapsuleRope::Ptr sim(new CapsuleRope(scaleVecs(nodes,METERS), radius*METERS));
+
         TrackedRope::Ptr tracked_rope(new TrackedRope(sim));
-        std::cout << "created rope" << std::endl;
+//        std::cout << "created rope" << std::endl;
+//        std::cout << tracked_rope->m_nNodes << std::endl;
 
         trackedObj_ = tracked_rope;
         trackedObj_->init();
-        std::cout << "inited rope" << std::endl;
+//        std::cout << "inited rope" << std::endl;
 
         objectFeatures_.reset(new TrackedObjectFeatureExtractor(trackedObj_));
         cloudFeatures_.reset(new CloudFeatureExtractor());
@@ -111,19 +73,29 @@ struct TrackerState{
         trackedObj_ = nullptr;
     }
 
-    void update(ColorCloudPtr filteredCloud, Eigen::VectorXf& vis_vec){
+    void update(int num_iter, ColorCloudPtr filteredCloud, Eigen::VectorXf& vis_vec, float* out_nodes_ptr, int out_nodes_size){
         // filtered cloud in ground frame
         cloudFeatures_->updateInputs(filteredCloud);
         alg_->updateFeatures(vis_vec);
         Eigen::MatrixXf estPos_next = alg_->CPDupdate();
 
-        for(int i = 0; i < simulation_num_iter_; i++){
+        for(int i = 0; i < num_iter; i++){
             alg_->updateFeatures(vis_vec);
             objectFeatures_->m_obj->CPDapplyEvidence(toBulletVectors(estPos_next));
         }
+
+
+        std::vector<btVector3> nodes = trackedObj_->getPoints();
+        std::cout << nodes.size() << std::endl;
+        assert(out_nodes_size == nodes.size());
+        for(int i = 0; i < nodes.size(); i++){
+            btVector3 vec = nodes[i]/METERS;
+            out_nodes_ptr[i * 3 + 0] = vec.x();
+            out_nodes_ptr[i * 3 + 1] = vec.y();
+            out_nodes_ptr[i * 3 + 2] = vec.z();
+        }
     }
 
-    int simulation_num_iter_;
     TrackedObject::Ptr trackedObj_;
     TrackedObjectFeatureExtractor::Ptr objectFeatures_;
     CloudFeatureExtractor::Ptr cloudFeatures_;
@@ -136,12 +108,11 @@ extern "C" TrackerState* create_tracker(float * nodes_ptr, int size, float radiu
         nodes[i] = btVector3(nodes_ptr[i*3 + 0], nodes_ptr[i*3 + 1], nodes_ptr[i*3 + 2]);
     }
 
-    for(int i = 0; i < size; i++){
-        std::cout << nodes[i].x() << ' ' << nodes[i].y() << ' ' << nodes[i].z() << std::endl;
-    }
+//    for(int i = 0; i < size; i++){
+//        std::cout << nodes[i].x() << ' ' << nodes[i].y() << ' ' << nodes[i].z() << std::endl;
+//    }
 
     auto tracker_state = new TrackerState(nodes, radius);
-//    TrackerState* tracker_state = nullptr;
     return tracker_state;
 }
 
@@ -150,6 +121,24 @@ extern "C" void delete_tracker(TrackerState* tracker_state){
     delete tracker_state;
 }
 
-extern "C" void update_tracker(TrackerState* tracker_state){
-    std::cout << tracker_state << std::endl;
+extern "C" void update_tracker(TrackerState* tracker_state, int num_iter,
+                               float* cloud_ptr, int cloud_size,
+                               float* vis_vec_ptr, int vis_vec_size,
+                               float* out_nodes_ptr, int out_nodes_size){
+    ColorCloudPtr cloud(new ColorCloud);
+    cloud->width = cloud_size;
+    cloud->height = 1;
+    cloud->is_dense = false;
+    cloud->points.resize(cloud->width * cloud->height);
+    for(int i = 0; i < cloud_size; i++){
+        cloud->points[i].x = cloud_ptr[i * 3 + 0];
+        cloud->points[i].y = cloud_ptr[i * 3 + 1];
+        cloud->points[i].z = cloud_ptr[i * 3 + 2];
+    }
+    Eigen::VectorXf vis_vec = Eigen::VectorXf::Map(vis_vec_ptr, vis_vec_size);
+
+//    std::cout << "update inited" << std::endl;
+
+    tracker_state->update(num_iter, cloud, vis_vec, out_nodes_ptr, out_nodes_size);
+//    std::cout << "update finished" << std::endl;
 }
