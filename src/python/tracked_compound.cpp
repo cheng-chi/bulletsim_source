@@ -4,9 +4,9 @@
 #include "utils/cvmat.h"
 #include "simulation/bullet_io.h"
 #include "utils/utils_vector.h"
-#include "tracking/surface_sampling.h"
+#include "python/surface_sampling.h"
 #include <boost/foreach.hpp>
-#include "tracking/feature_extractor.h"
+#include "python/feature_extractor.h"
 
 using namespace std;
 using namespace Eigen;

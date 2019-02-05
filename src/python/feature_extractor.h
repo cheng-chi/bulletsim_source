@@ -74,8 +74,8 @@ class CloudFeatureExtractor : public FeatureExtractor {
 public:
 	typedef boost::shared_ptr<CloudFeatureExtractor> Ptr;
 	ColorCloudPtr m_cloud;
-	cv::Mat m_image;
-	CoordinateTransformer* m_transformer;
+//	cv::Mat m_image;
+//	CoordinateTransformer* m_transformer;
 
 	void updateInputs(ColorCloudPtr cloud);
 	void updateInputs(ColorCloudPtr cloud, cv::Mat image, CoordinateTransformer* transformer);

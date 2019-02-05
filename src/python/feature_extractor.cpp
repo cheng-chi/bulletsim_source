@@ -89,12 +89,12 @@ void CloudFeatureExtractor::updateInputs(ColorCloudPtr cloud) {
 	m_features.resize(m_cloud->size(), m_dim);
 }
 
-void CloudFeatureExtractor::updateInputs(ColorCloudPtr cloud, cv::Mat image, CoordinateTransformer* transformer) {
-	m_cloud = cloud;
-	m_image = image;
-	m_transformer = transformer;
-	m_features.resize(m_cloud->size(), m_dim);
-}
+//void CloudFeatureExtractor::updateInputs(ColorCloudPtr cloud, cv::Mat image, CoordinateTransformer* transformer) {
+//	m_cloud = cloud;
+//	m_image = image;
+//	m_transformer = transformer;
+//	m_features.resize(m_cloud->size(), m_dim);
+//}
 
 void CloudFeatureExtractor::updateFeatures() {
 	//update ALL the features

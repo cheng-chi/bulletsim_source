@@ -21,10 +21,9 @@ using namespace std;
 
 //#define CHECK_CORRECTNESS
 
-PhysicsTracker::PhysicsTracker(TrackedObjectFeatureExtractor::Ptr object_features, FeatureExtractor::Ptr observation_features, VisibilityInterface::Ptr visibility_interface) :
+PhysicsTracker::PhysicsTracker(TrackedObjectFeatureExtractor::Ptr object_features, FeatureExtractor::Ptr observation_features) :
 					m_objFeatures(object_features),
-					m_obsFeatures(observation_features),
-					m_visInt(visibility_interface)
+					m_obsFeatures(observation_features)
 {
 	m_priorDist = m_objFeatures->m_obj->getPriorDist();
 	m_stdev = m_priorDist.transpose().replicate(m_objFeatures->m_obj->m_nNodes, 1);
@@ -33,7 +32,7 @@ PhysicsTracker::PhysicsTracker(TrackedObjectFeatureExtractor::Ptr object_feature
 }
 
 // Before calling this function, the inputs of the FeatureExtractors should be updated (if any)
-void PhysicsTracker::updateFeatures() {
+void PhysicsTracker::updateFeatures(VectorXf& vis_vec) {
 	m_objFeatures->updateFeatures();
 	m_obsFeatures->updateFeatures();
 	//shift the point cloud in the z coordinate
@@ -46,7 +45,8 @@ void PhysicsTracker::updateFeatures() {
 	m_estPts = m_objFeatures->getFeatures();
 	m_obsPts = m_obsFeatures->getFeatures();
 
-	m_vis = m_visInt->checkNodeVisibility(m_objFeatures->m_obj);
+    //m_vis = m_visInt->checkNodeVisibility(m_objFeatures->m_obj);
+    m_vis = vis_vec;
 }
 
 void PhysicsTracker::expectationStep() {

@@ -1,6 +1,8 @@
 project (log4cplus)
 cmake_minimum_required (VERSION 2.8.0)
 
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 set (log4cplus_version_major 1)
 set (log4cplus_version_minor 1)
 set (log4cplus_version_patch 0)

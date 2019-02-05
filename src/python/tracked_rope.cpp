@@ -63,10 +63,10 @@ void TrackedRope::CPDapplyEvidence(const vector<btVector3>& estPos_next) {
 
 
 
-void TrackedRope::initColors() {
-	m_colors.resize(m_nNodes, 3);
-	for (int i=0; i < m_nNodes; ++i) {
-		Vector3f bgr = toEigenMatrixImage(getSim()->children[i]->getTexture()).colwise().mean();
-		m_colors.row(i) = bgr.transpose();
-	}
-}
+//void TrackedRope::initColors() {
+//	m_colors.resize(m_nNodes, 3);
+//	for (int i=0; i < m_nNodes; ++i) {
+//		Vector3f bgr = toEigenMatrixImage(getSim()->children[i]->getTexture()).colwise().mean();
+//		m_colors.row(i) = bgr.transpose();
+//	}
+//}

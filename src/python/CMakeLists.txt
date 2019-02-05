@@ -15,6 +15,8 @@ link_directories(
   ${ROS_ROOT_DIR}/lib
 )
 
+#set (CMAKE_CXX_STANDARD 11)
+
 add_library(python_tracking
 	algorithm_common.cpp 
 	config_tracking.cpp
@@ -37,14 +39,20 @@ add_library(python_tracking
         cam_sync.cpp
 )
 
-target_link_libraries(python_tracking simulation clouds cv_bridge  Cpd::Library-C++)
+target_link_libraries(python_tracking simulation clouds cv_bridge  Cpd::Library-C++ ${Boost_LIBRARIES} ${Boost_PROGRAM_OPTIONS_LIBRARY})
 	
 #add_executable(tracker_node tracker_node.cpp)
 #target_link_libraries(tracker_node tracking simulation clouds tf cv_bridge ${OpenCV_LIBS} ${catkin_LIBRARIES} boost_signals boost_program_options)
 
-add_executable(python_tracker_node_CPD tracker_node_CPD.cpp)
-target_link_libraries(python_tracker_node_CPD python_tracking simulation clouds tf cv_bridge ${OpenCV_LIBS} ${catkin_LIBRARIES} boost_signals boost_program_options)
+#add_executable(python_tracker_node_CPD tracker_node_CPD.cpp)
+#target_link_libraries(python_tracker_node_CPD python_tracking simulation clouds tf cv_bridge ${OpenCV_LIBS} ${catkin_LIBRARIES} boost_signals boost_program_options)
+
+#SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden")
+
+message(${Boost_LIBRARIES})
+message(${Boost_PROGRAM_OPTIONS_LIBRARY})
 
 add_library(python_cpdsim_bridge SHARED python_cpdsim_bridge.cpp)
-target_link_libraries(python_cpdsim_bridge python_tracking)
+target_link_libraries(python_cpdsim_bridge python_tracking simulation clouds  Cpd::Library-C++ ${OpenCV_LIBS} ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${Boost_PROGRAM_OPTIONS_LIBRARY})
 
+#set_target_properties(python_cpdsim_bridge PROPERTIES CXX_VISIBILITY_PRESET hidden)

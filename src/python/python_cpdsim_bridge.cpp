@@ -72,92 +72,84 @@ extern "C" void copy_matrix(float * dest, float * arr_ptr, int height, int width
     // }
 }
 
+//void copy_rope(const bulletsim_msgs::ObjectInit& initMsg){
+//    vector<btVector3> nodes = toBulletVectors(initMsg.rope.nodes);
+//    BOOST_FOREACH(btVector3& node, nodes) node += btVector3(0,0,.01);
+//}
+
 extern "C" void copy_eigen(float * arr_ptr, int size){
     Eigen::VectorXf eigen_vec = Eigen::VectorXf::Map(arr_ptr, size);
     std::cout << eigen_vec << std::endl;
 }
 
 struct TrackerState{
-    TrackerState(int size){
-        size_ = size;
-        arr = new float[size];
+    TrackerState(vector<btVector3>& nodes, btScalar radius){
+        simulation_num_iter_ = 20;
+
+        Eigen::setNbThreads(2);
+//        GeneralConfig::scale = 100;
+//        BulletConfig::maxSubSteps = 0;
+//        BulletConfig::gravity = btVector3(0,0,-0.1);
+
+        CapsuleRope::Ptr sim(new CapsuleRope(scaleVecs(nodes,METERS), radius*METERS));
+        TrackedRope::Ptr tracked_rope(new TrackedRope(sim));
+        std::cout << "created rope" << std::endl;
+
+        trackedObj_ = tracked_rope;
+        trackedObj_->init();
+        std::cout << "inited rope" << std::endl;
+
+        objectFeatures_.reset(new TrackedObjectFeatureExtractor(trackedObj_));
+        cloudFeatures_.reset(new CloudFeatureExtractor());
+        alg_.reset(new PhysicsTracker(objectFeatures_, cloudFeatures_));
+
     }
     ~TrackerState(){
-        delete[] arr;
+        alg_ = nullptr;
+        cloudFeatures_ = nullptr;
+        objectFeatures_ = nullptr;
+        trackedObj_ = nullptr;
     }
-    int size_;
-    float * arr;
+
+    void update(ColorCloudPtr filteredCloud, Eigen::VectorXf& vis_vec){
+        // filtered cloud in ground frame
+        cloudFeatures_->updateInputs(filteredCloud);
+        alg_->updateFeatures(vis_vec);
+        Eigen::MatrixXf estPos_next = alg_->CPDupdate();
+
+        for(int i = 0; i < simulation_num_iter_; i++){
+            alg_->updateFeatures(vis_vec);
+            objectFeatures_->m_obj->CPDapplyEvidence(toBulletVectors(estPos_next));
+        }
+    }
+
+    int simulation_num_iter_;
+    TrackedObject::Ptr trackedObj_;
+    TrackedObjectFeatureExtractor::Ptr objectFeatures_;
+    CloudFeatureExtractor::Ptr cloudFeatures_;
+    PhysicsTracker::Ptr alg_;
 };
 
-//extern "C" TrackerState* create_tracker(float * arr_ptr, int size){
-//    TrackerState* tracker_state = new TrackerState(size);
-//
-//    int nCameras = 1;
-//
-//    TrackedObject::Ptr trackedObj;
-//    trackedObj->init();
-//
-//    MultiVisibility::Ptr visInterface(new MultiVisibility());
-//    for (int i=0; i<nCameras; i++) {
-//        if (trackedObj->m_type == "rope") // Don't do self-occlusion if the trackedObj is a rope
-//            visInterface->addVisibility(DepthImageVisibility::Ptr(new DepthImageVisibility(transformers[i])));
-//        else
-//            visInterface->addVisibility(AllOcclusionsVisibility::Ptr(new AllOcclusionsVisibility(scene.env->bullet->dynamicsWorld, transformers[i])));
-//    }
-//
-//    TrackedObjectFeatureExtractor::Ptr objectFeatures(new TrackedObjectFeatureExtractor(trackedObj));
-//    CloudFeatureExtractor::Ptr cloudFeatures(new CloudFeatureExtractor());
-//    PhysicsTracker::Ptr alg(new PhysicsTracker(objectFeatures, cloudFeatures, visInterface));
-//    PhysicsTrackerVisualizer::Ptr trackingVisualizer(new PhysicsTrackerVisualizer(&scene, alg));
-//
-//    bool applyEvidence = true;
-//    scene.addVoidKeyCallback('a',boost::bind(toggle, &applyEvidence), "apply evidence");
-//    scene.addVoidKeyCallback('=',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), 0.1f), "increase opacity");
-//    scene.addVoidKeyCallback('-',boost::bind(&EnvironmentObject::adjustTransparency, trackedObj->getSim(), -0.1f), "decrease opacity");
-//    bool exit_loop = false;
-//    scene.addVoidKeyCallback('q',boost::bind(toggle, &exit_loop), "exit");
-//
-//    boost::shared_ptr<ScreenThreadRecorder> screen_recorder;
-//    boost::shared_ptr<ImageTopicRecorder> image_topic_recorder;
-//    if (RecordingConfig::record == RECORD_RENDER_ONLY) {
-//        screen_recorder.reset(new ScreenThreadRecorder(scene.viewer, RecordingConfig::dir + "/" +  RecordingConfig::video_file + "_tracked.avi"));
-//    } else if (RecordingConfig::record == RECORD_RENDER_AND_TOPIC) {
-//        screen_recorder.reset(new ScreenThreadRecorder(scene.viewer, RecordingConfig::dir + "/" +  RecordingConfig::video_file + "_tracked.avi"));
-//        image_topic_recorder.reset(new ImageTopicRecorder(nh, image_topics[0], RecordingConfig::dir + "/" +  RecordingConfig::video_file + "_topic.avi"));
-//    }
-//
-//    scene.setSyncTime(false);
-//    scene.setDrawing(true);
-//
-//    while (!exit_loop && ros::ok()) {
-//        //Update the inputs of the featureExtractors and visibilities (if they have any inputs)
-//        cloudFeatures->updateInputs(filteredCloud, rgb_images[0], transformers[0]);
-//        for (int i=0; i<nCameras; i++)
-//            visInterface->visibilities[i]->updateInput(depth_images[i]);
-//
-//        alg->updateFeatures();
-//        Eigen::MatrixXf estPos_next = alg->CPDupdate();
-//
-//        pending = false;
-//
-//        while (ros::ok() && !pending) {
-//
-//            //Do iteration
-//            alg->updateFeatures();
-//            objectFeatures->m_obj->CPDapplyEvidence(toBulletVectors(estPos_next));
-//            trackingVisualizer->update();
-//            scene.step(.03, 2, .015);
-//
-//            ros::spinOnce();
-//        }
-//        objPub.publish(toTrackedObjectMessage(trackedObj));
-//    }
-//
-//    return tracker_state;
-//}
+extern "C" TrackerState* create_tracker(float * nodes_ptr, int size, float radius){
+    std::vector<btVector3> nodes(size);
+    for(int i = 0; i < size; i++){
+        nodes[i] = btVector3(nodes_ptr[i*3 + 0], nodes_ptr[i*3 + 1], nodes_ptr[i*3 + 2]);
+    }
 
+    for(int i = 0; i < size; i++){
+        std::cout << nodes[i].x() << ' ' << nodes[i].y() << ' ' << nodes[i].z() << std::endl;
+    }
+
+    auto tracker_state = new TrackerState(nodes, radius);
+//    TrackerState* tracker_state = nullptr;
+    return tracker_state;
+}
 
 extern "C" void delete_tracker(TrackerState* tracker_state){
     std::cout << tracker_state << std::endl;
     delete tracker_state;
+}
+
+extern "C" void update_tracker(TrackerState* tracker_state){
+    std::cout << tracker_state << std::endl;
 }

@@ -244,7 +244,8 @@ int main(int argc, char* argv[]) {
 
 	while (!exit_loop && ros::ok()) {
 		//Update the inputs of the featureExtractors and visibilities (if they have any inputs)
-		cloudFeatures->updateInputs(filteredCloud, rgb_images[0], transformers[0]);
+        //cloudFeatures->updateInputs(filteredCloud, rgb_images[0], transformers[0]);
+        cloudFeatures->updateInputs(filteredCloud);
 		for (int i=0; i<nCameras; i++)
 			visInterface->visibilities[i]->updateInput(depth_images[i]);
 

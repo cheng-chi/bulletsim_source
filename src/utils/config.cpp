@@ -35,4 +35,4 @@ void Parser::read(int argc, char* argv[]) {
 
 
 int GeneralConfig::verbose = log4cplus::WARN_LOG_LEVEL;
-float GeneralConfig::scale = 1.;
+float GeneralConfig::scale = 100.;

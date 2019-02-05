@@ -37,4 +37,5 @@ target_link_libraries(simulation
   ${OSG_LIBS}
   ${BULLET_LIBS}
   ${LOG4CPLUS_LIBRARY}
+  ${Boost_PROGRAM_OPTIONS_LIBRARY}
 )

@@ -54,7 +54,7 @@ public:
   //////////////////
   void CPDapplyEvidence(const vector<btVector3>& estPos_next);
   CapsuleRope* getSim() {return dynamic_cast<CapsuleRope*>(m_sim.get());}
-  void initColors();
+//  void initColors();
 
 protected:
   Eigen::VectorXf m_masses;

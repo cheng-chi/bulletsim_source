@@ -17,8 +17,6 @@ public:
 	TrackedObjectFeatureExtractor::Ptr m_objFeatures;
 	FeatureExtractor::Ptr m_obsFeatures;
 
-	VisibilityInterface::Ptr m_visInt;
-
 	// latent parameters
 	Eigen::MatrixXf m_estPts;
 	Eigen::MatrixXf m_stdev;
@@ -36,8 +34,8 @@ public:
 	Eigen::VectorXf m_outlierDist; //m_obsPts - m_estPts for the fake node responsible for an outlier observation. same for all obsPts.
 	Eigen::VectorXf m_vis;
 
-	PhysicsTracker(TrackedObjectFeatureExtractor::Ptr object_features, FeatureExtractor::Ptr observation_features, VisibilityInterface::Ptr visibility_interface);
-	void updateFeatures();
+	PhysicsTracker(TrackedObjectFeatureExtractor::Ptr object_features, FeatureExtractor::Ptr observation_features);
+	void updateFeatures(Eigen::VectorXf& vis_vec);
 	void expectationStep();
 	void maximizationStep(bool apply_evidence=true);
 	Eigen::MatrixXf CPDupdate();
