@@ -37,7 +37,7 @@
 //#include "clouds/utils_cv.h"
 //#include "simulation/recording.h"
 //#include "cam_sync.h"
-
+//
 //#include "simulation/config_viewer.h"
 
 #include <Eigen/Dense>
@@ -50,6 +50,8 @@ struct TrackerState{
         BulletConfig::maxSubSteps = 0;
         BulletConfig::gravity = btVector3(0,0,-0.1);
 
+        util::setGlobalEnv(scene_.env);
+
 //        std::cout << nodes.size() << std::endl;
         CapsuleRope::Ptr sim(new CapsuleRope(scaleVecs(nodes,METERS), radius*METERS));
 
@@ -61,9 +63,14 @@ struct TrackerState{
         trackedObj_->init();
 //        std::cout << "inited rope" << std::endl;
 
+        scene_.env->add(trackedObj_->m_sim);
+
         objectFeatures_.reset(new TrackedObjectFeatureExtractor(trackedObj_));
         cloudFeatures_.reset(new CloudFeatureExtractor());
         alg_.reset(new PhysicsTracker(objectFeatures_, cloudFeatures_));
+
+        scene_.setSyncTime(false);
+        scene_.setDrawing(false);
 
     }
     ~TrackerState(){
@@ -74,19 +81,26 @@ struct TrackerState{
     }
 
     void update(int num_iter, ColorCloudPtr filteredCloud, Eigen::VectorXf& vis_vec, float* out_nodes_ptr, int out_nodes_size){
+//        for(int i = 0; i < filteredCloud->points.size(); i++){
+//            std::cout << filteredCloud->points[i].x << ' '
+//                      << filteredCloud->points[i].y << ' '
+//                      << filteredCloud->points[i].z << ' '
+//                      << std::endl;
+//        }
         // filtered cloud in ground frame
         cloudFeatures_->updateInputs(filteredCloud);
         alg_->updateFeatures(vis_vec);
         Eigen::MatrixXf estPos_next = alg_->CPDupdate();
+//        std::cout << "estPos_next" << std::endl;
+//        std::cout << estPos_next << std::endl;
 
         for(int i = 0; i < num_iter; i++){
             alg_->updateFeatures(vis_vec);
             objectFeatures_->m_obj->CPDapplyEvidence(toBulletVectors(estPos_next));
+            scene_.step(.03, 2, .015);
         }
 
-
-        std::vector<btVector3> nodes = trackedObj_->getPoints();
-        std::cout << nodes.size() << std::endl;
+        std::vector<btVector3> nodes = objectFeatures_->m_obj->getPoints();
         assert(out_nodes_size == nodes.size());
         for(int i = 0; i < nodes.size(); i++){
             btVector3 vec = nodes[i]/METERS;
@@ -100,6 +114,7 @@ struct TrackerState{
     TrackedObjectFeatureExtractor::Ptr objectFeatures_;
     CloudFeatureExtractor::Ptr cloudFeatures_;
     PhysicsTracker::Ptr alg_;
+    Scene scene_;
 };
 
 extern "C" TrackerState* create_tracker(float * nodes_ptr, int size, float radius){
@@ -108,9 +123,6 @@ extern "C" TrackerState* create_tracker(float * nodes_ptr, int size, float radiu
         nodes[i] = btVector3(nodes_ptr[i*3 + 0], nodes_ptr[i*3 + 1], nodes_ptr[i*3 + 2]);
     }
 
-//    for(int i = 0; i < size; i++){
-//        std::cout << nodes[i].x() << ' ' << nodes[i].y() << ' ' << nodes[i].z() << std::endl;
-//    }
 
     auto tracker_state = new TrackerState(nodes, radius);
     return tracker_state;
@@ -131,14 +143,20 @@ extern "C" void update_tracker(TrackerState* tracker_state, int num_iter,
     cloud->is_dense = false;
     cloud->points.resize(cloud->width * cloud->height);
     for(int i = 0; i < cloud_size; i++){
-        cloud->points[i].x = cloud_ptr[i * 3 + 0];
-        cloud->points[i].y = cloud_ptr[i * 3 + 1];
-        cloud->points[i].z = cloud_ptr[i * 3 + 2];
+        cloud->points[i].x = cloud_ptr[i * 3 + 0] * METERS;
+        cloud->points[i].y = cloud_ptr[i * 3 + 1] * METERS;
+        cloud->points[i].z = cloud_ptr[i * 3 + 2] * METERS;
     }
+
+//    for(int i = 0; i < cloud->points.size(); i++){
+//        std::cout << cloud->points[i].x << 'a'
+//                  << cloud->points[i].y << 'b'
+//                  << cloud->points[i].z << 'c'
+//                  << std::endl;
+//    }
+
+
     Eigen::VectorXf vis_vec = Eigen::VectorXf::Map(vis_vec_ptr, vis_vec_size);
 
-//    std::cout << "update inited" << std::endl;
-
     tracker_state->update(num_iter, cloud, vis_vec, out_nodes_ptr, out_nodes_size);
-//    std::cout << "update finished" << std::endl;
 }

@@ -24,9 +24,9 @@ add_subdirectory(simulation)
 add_subdirectory(comm)
 add_subdirectory(clouds)
 
-#if (BUILD_TRACKING)
-#  add_subdirectory(tracking)
-#endif (BUILD_TRACKING)
+if (BUILD_TRACKING)
+  add_subdirectory(tracking)
+endif (BUILD_TRACKING)
 
 if (BUILD_TESTS)
   add_subdirectory(tests)

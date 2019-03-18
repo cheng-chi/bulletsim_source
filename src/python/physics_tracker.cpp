@@ -115,6 +115,10 @@ Eigen::MatrixXf PhysicsTracker::CPDupdate() {
 
 	Eigen::MatrixXd pointCld = m_obsPts.cast <double> ();
 	Eigen::MatrixXd simCld = m_estPts.cast <double> ();
+//	std::cout << "pointCld" << std::endl;
+//	std::cout << pointCld << std::endl;
+//	std::cout << "simCld" << std::endl;
+//	std::cout << simCld << std::endl;
 
 	cpd::Nonrigid Nonrigid;
 	Nonrigid.normalize(true);

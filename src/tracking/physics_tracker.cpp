@@ -47,6 +47,8 @@ void PhysicsTracker::updateFeatures() {
 	m_obsPts = m_obsFeatures->getFeatures();
 
 	m_vis = m_visInt->checkNodeVisibility(m_objFeatures->m_obj);
+    std::cout << "m_vis" << std::endl;
+    std::cout << m_vis << std::endl;
 }
 
 void PhysicsTracker::expectationStep() {
@@ -115,6 +117,12 @@ Eigen::MatrixXf PhysicsTracker::CPDupdate() {
 
 	Eigen::MatrixXd pointCld = m_obsPts.cast <double> ();
 	Eigen::MatrixXd simCld = m_estPts.cast <double> ();
+
+//	std::cout << "pointCld" << std::endl;
+//	std::cout << pointCld << std::endl;
+//	std::cout << "simCld" << std::endl;
+//	std::cout << simCld << std::endl;
+
 
 	cpd::Nonrigid Nonrigid;
 	Nonrigid.normalize(true);

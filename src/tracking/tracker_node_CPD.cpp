@@ -245,6 +245,13 @@ int main(int argc, char* argv[]) {
 	while (!exit_loop && ros::ok()) {
 		//Update the inputs of the featureExtractors and visibilities (if they have any inputs)
 		//cloudFeatures->updateInputs(filteredCloud, rgb_images[0], transformers[0]);
+//        std::cout << "filteredCloud" << std::endl;
+//        for(int i = 0; i < filteredCloud->points.size(); i++){
+//            std::cout << filteredCloud->points[i].x << ' '
+//                      << filteredCloud->points[i].y << ' '
+//                      << filteredCloud->points[i].z << ' '
+//                      << std::endl;
+//        }
 		cloudFeatures->updateInputs(filteredCloud);
 		for (int i=0; i<nCameras; i++)
 			visInterface->visibilities[i]->updateInput(depth_images[i]);
@@ -253,9 +260,9 @@ int main(int argc, char* argv[]) {
 		Eigen::MatrixXf estPos_next = alg->CPDupdate();
 
 		pending = false;
-
+		int i = 0;
 		while (ros::ok() && !pending) {
-
+			i++;
 			//Do iteration
 			alg->updateFeatures();
 			objectFeatures->m_obj->CPDapplyEvidence(toBulletVectors(estPos_next));
@@ -264,6 +271,7 @@ int main(int argc, char* argv[]) {
 
 			ros::spinOnce();
 		}
+		std::cout << "physics iterations:" << i << std::endl;
 		objPub.publish(toTrackedObjectMessage(trackedObj));
 	}
 
